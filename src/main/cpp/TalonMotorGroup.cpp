@@ -26,52 +26,108 @@
 ////////////////////////////////////////////////////////////////
 /// @method TalonMotorGroup::TalonMotorGroup
 ///
-/// Constructor.  Creates the number of motors specified on the
-/// port numbers passed in.
+/// Constructor.  Creates the number of motors specified
+/// starting from the CAN ID passed in.
 ///
 ////////////////////////////////////////////////////////////////
-TalonMotorGroup::TalonMotorGroup( int numMotors, int firstCANId, MotorGroupControlMode controlMode, FeedbackDevice sensor )
-: m_NumMotors(numMotors)
-, m_pMotors()
-, m_ControlMode(controlMode)
-, m_Sensor(sensor)
+TalonMotorGroup::TalonMotorGroup( int numMotors, int masterCanId, MotorGroupControlMode nonMasterControlMode, FeedbackDevice sensor ) :
+    m_NumMotors(numMotors),
+    m_Sensor(sensor)
 {
-    // Allocate the necessary storage for all of the objects by invoking operator new[]
-    // Assign the returned memory block to the first pointer in the array
-    //m_pMotors[0] =  reinterpret_cast<TalonSRX *>( operator new[] (numMotors * sizeof(TalonSRX)) );
-
-    // CAN Talons can be set to follow, which the motor groups
-    // may do, so save off the first id as the master
-    int masterId = firstCANId;
-
     // Loop for each motor to create
-    for ( int i = 0; i < numMotors; i++ )
+    for ( int i = 0; (i < numMotors) && (i < MAX_NUMBER_OF_MOTORS); i++ )
     {
-        // Create it
-        m_pMotors[i] = new TalonSRX(firstCANId++);
-        
-        // Override to always coast
-        m_pMotors[i]->SetNeutralMode(NeutralMode::Coast);
-
-        // Only set follow for Talon groups that will be configured
-        // as such.  Otherwise just use the defaults (percent voltage based).
-        // The CTRE Phoenix library now passes the control mode in the
-        // Set() method, so we only need to set the followers here.
-        if ((i != 0) && (controlMode == FOLLOW))
+        // The master Talon is unique
+        if (i == 0)
         {
-            m_pMotors[i]->Set(ControlMode::Follower, masterId);
-        }
-        else if (i == 0)
-        {
-            // This assumes only the first controller in a group has a sensor.
+            // Create it
+            m_pMotorsInfo[i] = new MotorInfo(MASTER, masterCanId);
             
-            // Sensor initialization (feedbackDevice, pidIdx, timeoutMs)
-            m_pMotors[i]->ConfigSelectedFeedbackSensor(sensor, 0, 0);
+            // This assumes only the first controller in a group has a sensor
+            if (sensor != static_cast<FeedbackDevice>(FEEDBACK_DEVICE_NONE))
+            {
+                // Sensor initialization (feedbackDevice, pidIdx, timeoutMs)
+                m_pMotorsInfo[0]->m_pTalonSrx->ConfigSelectedFeedbackSensor(sensor, 0, 0);
+            }
         }
+        // Non-master Talons
         else
         {
+            // Create it
+            m_pMotorsInfo[i] = new MotorInfo(nonMasterControlMode, (masterCanId + i));
+
+            // Only set follow for Talon groups that will be configured as
+            // such.  The CTRE Phoenix library now passes the control mode in
+            // the Set() method, so we only need to set the followers here.
+            if (nonMasterControlMode == FOLLOW)
+            {
+                m_pMotorsInfo[i]->m_pTalonSrx->Set(ControlMode::Follower, masterCanId);
+            }
+        }
+        
+        // Override to always coast
+        m_pMotorsInfo[i]->m_pTalonSrx->SetNeutralMode(NeutralMode::Coast);
+    }
+}
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method TalonMotorGroup::AddMotorToGroup
+///
+/// Method to add a new motor to a motor group.
+///
+////////////////////////////////////////////////////////////////
+bool TalonMotorGroup::AddMotorToGroup(MotorGroupControlMode controlMode)
+{
+    bool bResult = false;
+
+    // Make sure there's room for another motor in this group
+    if (m_NumMotors < MAX_NUMBER_OF_MOTORS)
+    {
+        // The new motor CAN ID is the first motor's ID + current number of group motors present
+        int newMotorCanId = m_pMotorsInfo[0]->m_CanId + m_NumMotors;
+
+        // m_NumMotors can be leveraged as the index, as it represents the next unused array element
+        m_pMotorsInfo[m_NumMotors] = new MotorInfo(controlMode, newMotorCanId);
+
+        // Increase the number of motors
+        m_NumMotors++;
+        
+        // Indicate success
+        bResult = true;
+    }
+
+    return bResult;
+}
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method TalonMotorGroup::SetMotorInGroupControlMode
+///
+/// Method to set the control mode of a motor in a group.
+///
+////////////////////////////////////////////////////////////////
+bool TalonMotorGroup::SetMotorInGroupControlMode(int canId, MotorGroupControlMode controlMode)
+{
+    bool bResult = false;
+    
+    // Search for the correct motor in the group
+    for (int i = 0; i < m_NumMotors; i++)
+    {
+        // If it matches...
+        if (m_pMotorsInfo[i]->m_CanId == canId)
+        {
+            // ...set the control mode
+            m_pMotorsInfo[i]->m_ControlMode = controlMode;
+            
+            // Indicate success
+            bResult = true;
         }
     }
+
+    return bResult;
 }
 
 
@@ -86,7 +142,7 @@ void TalonMotorGroup::SetCoastMode()
 {
     for (int i = 0; i < m_NumMotors; i++)
     {
-        m_pMotors[i]->SetNeutralMode(NeutralMode::Coast);
+        m_pMotorsInfo[i]->m_pTalonSrx->SetNeutralMode(NeutralMode::Coast);
     }
 }
 
@@ -102,7 +158,7 @@ void TalonMotorGroup::SetBrakeMode()
 {
     for (int i = 0; i < m_NumMotors; i++)
     {
-        m_pMotors[i]->SetNeutralMode(NeutralMode::Brake);
+        m_pMotorsInfo[i]->m_pTalonSrx->SetNeutralMode(NeutralMode::Brake);
     }
 }
 
@@ -120,7 +176,7 @@ void TalonMotorGroup::TareEncoder()
     if (m_Sensor == FeedbackDevice::CTRE_MagEncoder_Relative)
     {
         // sensorPos, pidIdx, timeoutMs
-        m_pMotors[0]->SetSelectedSensorPosition(0, 0, 0);
+        m_pMotorsInfo[0]->m_pTalonSrx->SetSelectedSensorPosition(0, 0, 0);
     }
 }
 
@@ -135,15 +191,15 @@ void TalonMotorGroup::TareEncoder()
 ////////////////////////////////////////////////////////////////
 int TalonMotorGroup::GetEncoderValue()
 {
+    int sensorValue = 0;
+
     if (m_Sensor == FeedbackDevice::CTRE_MagEncoder_Relative)
     {
         // pidIdx
-        return m_pMotors[0]->GetSelectedSensorPosition(0);
+        sensorValue = m_pMotorsInfo[0]->m_pTalonSrx->GetSelectedSensorPosition(0);
     }
-    else
-    {
-        return 0;
-    }
+    
+    return sensorValue;
 }
 
 
@@ -151,110 +207,78 @@ int TalonMotorGroup::GetEncoderValue()
 ////////////////////////////////////////////////////////////////
 /// @method TalonMotorGroup::Set
 ///
-/// Method to set the speed of each motor in the group.
+/// Method to set the speed of each motor in the group.  The
+/// offset parameter is only valid for motor groups configured
+/// as *_OFFSET.
 ///
 ////////////////////////////////////////////////////////////////
-void TalonMotorGroup::Set( double value )
+void TalonMotorGroup::Set( double value, double offset )
 {
-    // Check what kind of group this is.  Most
-    // CAN Talons will be set to follow, but some
-    // may be independent or inverse (such as if
-    // they need to drive in different directions).
-    switch (m_ControlMode)
+    for (int i = 0; i < m_NumMotors; i++)
     {
-        // Typical case, just update the master
-        case FOLLOW:
+        // Setting motor values for groups assumes that the first half of
+        // motors in a group should always get the same value, and the second
+        // half of motors in a group could be different (such as inverse or offset).
+        // Keep track of which segment of the motor group this motor is in.
+        
+        // Enable this control if groups with > 2 motors are needed.
+        //bool bInFirstHalf = (i < (m_NumMotors / 2));
+        
+        // Most modes wil need to call Set() later, but some won't
+        bool bCallSet = true;
+        
+        // The value that will be passed to Set()
+        double valueToSet = 0.0;
+        
+        // Check what the control mode of this motor is.  Most CAN Talons
+        // will be set to follow, but some may be independent or inverse (such
+        // as if they need to drive in different directions).
+        switch (m_pMotorsInfo[i]->m_ControlMode)
         {
-            m_pMotors[0]->Set(ControlMode::PercentOutput, value);
-            break;
-        }
-        case INDEPENDENT:
-        {
-            for (int i = 0; i < m_NumMotors; i++)
+            case MASTER:
+            case INDEPENDENT:
             {
-                m_pMotors[i]->Set(ControlMode::PercentOutput, value);
+                // The master always gets set via percent voltage, as do
+                // motors that are independently controlled (not follow or inverse).
+                valueToSet = value;
+                break;
             }
-            break;
-        }
-        // Motors are attached to drive in
-        // opposite directions
-        case INVERSE:
-        {
-            // Assumes each half of motors need to go the same direction
-            // (i.e. 1:n motors, 1:n/2 forward, n/2:n reverse
-            for (int i = 0; i < m_NumMotors / 2; i++)
+            case FOLLOW:
             {
-               m_pMotors[i]->Set(ControlMode::PercentOutput, value);
+                // Nothing to do, motor had Set() called during object construction
+                bCallSet = false;
+                break;
             }
-            for (int i = m_NumMotors / 2; i < m_NumMotors; i++)
+            case INVERSE:
             {
-                   m_pMotors[i]->Set(ControlMode::PercentOutput, -value);
+                // Motor is attached to drive in opposite direction of master
+                valueToSet = -value;
+                break;
             }
-            break;
-        }
-        // Default cases for the offsets
-        case INDEPENDENT_OFFSET:
-        case INVERSE_OFFSET:
-        {
-            SetWithOffset(value, value);
-            break;
-        }
-        default:
-        {
-            break;
-        }
-    };
-}
-
-
-
-////////////////////////////////////////////////////////////////
-/// @method TalonMotorGroup::SetWithOffset
-///
-/// Method to set the speed of each motor in the group, where
-/// the speed is different between motors in the group.
-///
-////////////////////////////////////////////////////////////////
-void TalonMotorGroup::SetWithOffset( double group1Value, double group2Value )
-{
-    // Check what kind of group this is.  This Talon
-    // group is not uniform, so different values need
-    // to be applied.
-    switch (m_ControlMode)
-    {
-        case INDEPENDENT_OFFSET:
-        {
-            // Assumes each half of motors need to go the same direction
-            // (i.e. 1:n motors, 1:n/2 forward, n/2:n reverse
-            for (int i = 0; i < m_NumMotors / 2; i++)
+            case INDEPENDENT_OFFSET:
             {
-                m_pMotors[i]->Set(ControlMode::PercentOutput, group1Value);
+                // The non-master motor has a different value in this case
+                valueToSet = value + offset;
+                break;
             }
-            for (int i = m_NumMotors / 2; i < m_NumMotors; i++)
+            case INVERSE_OFFSET:
             {
-                m_pMotors[i]->Set(ControlMode::PercentOutput, group2Value);
+                // The non-master motor has a different value in this case
+                valueToSet = -(value + offset);
+                break;
             }
-            break;
-        }
-        // Motors are attached to drive in
-        // opposite directions
-        case INVERSE_OFFSET:
-        {
-            // Assumes each half of motors need to go the same direction
-            // (i.e. 1:n motors, 1:n/2 forward, n/2:n reverse
-            for (int i = 0; i < m_NumMotors / 2; i++)
+            default:
             {
-                m_pMotors[i]->Set(ControlMode::PercentOutput, group1Value);
+                // Can reach here with CUSTOM motors still set.  Calling code should
+                // update those motors to a different control mode via class API calls.
+                break;
             }
-            for (int i = m_NumMotors / 2; i < m_NumMotors; i++)
+            
+            if (bCallSet)
             {
-                m_pMotors[i]->Set(ControlMode::PercentOutput, -group2Value);
+                // Set the value in the Talon
+                m_pMotorsInfo[i]->m_pTalonSrx->Set(ControlMode::PercentOutput, valueToSet);
             }
-            break;
-        }
-        default:
-        {
-            break;
-        }
-    };
+        };
+    }
 }
