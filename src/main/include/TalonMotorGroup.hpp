@@ -16,7 +16,7 @@
 // <none>
 
 // C INCLUDES
-#include "ctre/Phoenix.h"               // for CTRE libraries
+#include "ctre/Phoenix.h"               // for CTRE library interfaces
 
 // C++ INCLUDES
 // (none)
@@ -33,39 +33,67 @@ class TalonMotorGroup
 {
 public:
     
+    // Represents how a motor will be controlled
     enum MotorGroupControlMode
     {
-        FOLLOW,
-        INDEPENDENT,
-        INVERSE,
-        INDEPENDENT_OFFSET,
-        INVERSE_OFFSET
+        MASTER,                 // First motor in a group
+        FOLLOW,                 // Motor follows the master
+        INDEPENDENT,            // Motor needs to be set independently
+        INVERSE,                // Motor is the inverse value of the master
+        INDEPENDENT_OFFSET,     // Motor is set independently, but with a different value from master
+        INVERSE_OFFSET,         // Motor is set independently, but with the a different inverse value from master
+        CUSTOM                  // Motor needs to be set later to an option above
     };
 
     // Constructor
-    TalonMotorGroup( int numMotors, int firstCANId, MotorGroupControlMode controlMode, FeedbackDevice sensor = static_cast<FeedbackDevice>(FEEDBACK_DEVICE_NONE) );
+    TalonMotorGroup(
+                     int numMotors,
+                     int masterCanId,
+                     MotorGroupControlMode nonMasterControlMode,
+                     FeedbackDevice sensor = static_cast<FeedbackDevice>(FEEDBACK_DEVICE_NONE)
+                   );
+
+    // Adds a new motor to a group
+    bool AddMotorToGroup(MotorGroupControlMode controlMode);
     
     // Function to set the speed of each motor in the group
-    void Set( double value );
-    void SetWithOffset( double group1Value, double group2Value );
+    void Set( double value, double offset = 0.0 );
     
-    // Return the value of the sensor connected to the Talon
-    int GetEncoderValue();
-    void TareEncoder();
+    // Sets the control mode of a motor in a group (intended for use with the CUSTOM group control mode)
+    bool SetMotorInGroupControlMode(int canId, MotorGroupControlMode controlMode);
     
     // Change Talon mode between brake/coast
     void SetCoastMode();
     void SetBrakeMode();
     
+    // Return the value of the sensor connected to the Talon
+    int GetEncoderValue();
+    void TareEncoder();
+    
 private:
+    
+    // Represents information about a single motor in a group
+    struct MotorInfo
+    {
+        TalonSRX * m_pTalonSrx;
+        MotorGroupControlMode m_ControlMode;
+        int m_CanId;
+        
+        MotorInfo(MotorGroupControlMode controlMode, int canId) :
+            m_pTalonSrx(new TalonSRX(canId)),
+            m_ControlMode(controlMode),
+            m_CanId(canId)
+        {
+        }
+    };
+
     static const int MAX_NUMBER_OF_MOTORS = 4;
-    static const int FEEDBACK_DEVICE_NONE = 0xFF;       // 2019: CTR removed FeedbackDevice::None with a TODO to restore it
+    static const int FEEDBACK_DEVICE_NONE = 0xFF;           // 2019: CTR removed FeedbackDevice::None with a TODO to restore it
 
     // Member variables
-    int m_NumMotors;                                    // Number of motors in the group
-    TalonSRX *  m_pMotors[MAX_NUMBER_OF_MOTORS];        // The motor objects
-    MotorGroupControlMode m_ControlMode;                // Keep track of the configuration of this Talon group
-    FeedbackDevice m_Sensor;                            // Keep track of the sensor attached to the Talon
+    int m_NumMotors;                                        // Number of motors in the group
+    FeedbackDevice m_Sensor;                                // Keep track of the sensor attached to the Talon (assumes one sensor per group)
+    MotorInfo *  m_pMotorsInfo[MAX_NUMBER_OF_MOTORS];       // The motor objects
     
     // Prevent default construction/deletion/copy/assignment
     TalonMotorGroup();

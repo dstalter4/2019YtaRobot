@@ -350,7 +350,7 @@ private:
 
     // CAN Signals
     static const int                LEFT_MOTORS_CAN_START_ID                = 1;
-    static const int                RIGHT_MOTORS_CAN_START_ID               = 3;
+    static const int                RIGHT_MOTORS_CAN_START_ID               = 4;
 
     // PWM Signals
     // (none)
@@ -371,8 +371,8 @@ private:
     static const int                OFF                                     = 0;
     static const int                ON                                      = 1;
     static const int                SINGLE_MOTOR                            = 1;
-    static const int                NUMBER_OF_LEFT_DRIVE_MOTORS             = 2;
-    static const int                NUMBER_OF_RIGHT_DRIVE_MOTORS            = 2;
+    static const int                NUMBER_OF_LEFT_DRIVE_MOTORS             = 3;
+    static const int                NUMBER_OF_RIGHT_DRIVE_MOTORS            = 3;
     static const int                POV_INPUT_TOLERANCE_VALUE               = 30;
     static const int                SCALE_TO_PERCENT                        = 100;
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
