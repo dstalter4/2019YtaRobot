@@ -32,6 +32,7 @@
 ////////////////////////////////////////////////////////////////
 TalonMotorGroup::TalonMotorGroup( int numMotors, int masterCanId, MotorGroupControlMode nonMasterControlMode, FeedbackDevice sensor ) :
     m_NumMotors(numMotors),
+    m_MasterCanId(masterCanId),
     m_Sensor(sensor)
 {
     // Loop for each motor to create
@@ -90,6 +91,12 @@ bool TalonMotorGroup::AddMotorToGroup(MotorGroupControlMode controlMode)
 
         // m_NumMotors can be leveraged as the index, as it represents the next unused array element
         m_pMotorsInfo[m_NumMotors] = new MotorInfo(controlMode, newMotorCanId);
+        
+        // If this Talon will be a follower, be sure to call Set() to enable it
+        if (controlMode == FOLLOW)
+        {
+            m_pMotorsInfo[m_NumMotors]->m_pTalonSrx->Set(ControlMode::Follower, m_MasterCanId);
+        }
 
         // Increase the number of motors
         m_NumMotors++;
@@ -121,6 +128,12 @@ bool TalonMotorGroup::SetMotorInGroupControlMode(int canId, MotorGroupControlMod
         {
             // ...set the control mode
             m_pMotorsInfo[i]->m_ControlMode = controlMode;
+
+            // If this Talon will be a follower, be sure to call Set() to enable it
+            if (controlMode == FOLLOW)
+            {
+                m_pMotorsInfo[i]->m_pTalonSrx->Set(ControlMode::Follower, m_MasterCanId);
+            }
             
             // Indicate success
             bResult = true;
@@ -273,12 +286,12 @@ void TalonMotorGroup::Set( double value, double offset )
                 // update those motors to a different control mode via class API calls.
                 break;
             }
-            
-            if (bCallSet)
-            {
-                // Set the value in the Talon
-                m_pMotorsInfo[i]->m_pTalonSrx->Set(ControlMode::PercentOutput, valueToSet);
-            }
         };
+            
+        if (bCallSet)
+        {
+            // Set the value in the Talon
+            m_pMotorsInfo[i]->m_pTalonSrx->Set(ControlMode::PercentOutput, valueToSet);
+        }
     }
 }
