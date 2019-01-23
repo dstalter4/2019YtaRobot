@@ -28,9 +28,6 @@
 ////////////////////////////////////////////////////////////////
 void YtaRobot::AutonomousRoutine3()
 {
-    // Idle until auto is terminated
+    // Returning from here will enter the idle state until autonomous is over
     DisplayMessage("Auto routine 3 done.");
-    while ( m_pDriverStation->IsAutonomous() && m_pDriverStation->IsEnabled() )
-    {
-    }
 }
