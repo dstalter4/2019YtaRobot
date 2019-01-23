@@ -92,6 +92,7 @@ private:
 
     // Member variables
     int m_NumMotors;                                        // Number of motors in the group
+    int m_MasterCanId;                                      // Keep track of the CAN ID of the master Talon in the group
     FeedbackDevice m_Sensor;                                // Keep track of the sensor attached to the Talon (assumes one sensor per group)
     MotorInfo *  m_pMotorsInfo[MAX_NUMBER_OF_MOTORS];       // The motor objects
     
