@@ -43,20 +43,20 @@ bool YtaRobot::AutonomousSonarDrive(SonarDriveDirection driveDirection, SonarDri
     {
         case FORWARD_GUIDE:
         {
-            destGuideSensorA = m_I2cData.m_FrontSonarB;
-            destGuideSensorB = m_I2cData.m_FrontSonarB;
+            destGuideSensorA = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_FrontDistances.m_SonarA;
+            destGuideSensorB = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_FrontDistances.m_SonarB;
             switch (sideDirection)
             {
                 case LEFT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cData.m_LeftSonarB;
-                    backGuideSensor = m_I2cData.m_LeftSonarA;
+                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarB;
+                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarA;
                     break;
                 }
                 case RIGHT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cData.m_RightSonarB;
-                    backGuideSensor = m_I2cData.m_RightSonarB;
+                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarA;
+                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarB;
                     break;
                 }
                 default:
@@ -69,20 +69,20 @@ bool YtaRobot::AutonomousSonarDrive(SonarDriveDirection driveDirection, SonarDri
         }
         case REVERSE_GUIDE:
         {
-            destGuideSensorA = m_I2cData.m_BackSonarA;
-            destGuideSensorB = m_I2cData.m_BackSonarB;
+            destGuideSensorA = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_BackDistances.m_SonarA;
+            destGuideSensorB = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_BackDistances.m_SonarB;
             switch (sideDirection)
             {
                 case LEFT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cData.m_LeftSonarA;
-                    backGuideSensor = m_I2cData.m_LeftSonarB;
+                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarA;
+                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarB;
                     break;
                 }
                 case RIGHT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cData.m_RightSonarB;
-                    backGuideSensor = m_I2cData.m_RightSonarB;
+                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarB;
+                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarA;
                     break;
                 }
                 default:
