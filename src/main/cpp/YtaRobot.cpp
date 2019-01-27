@@ -40,8 +40,8 @@ YtaRobot::YtaRobot() :
     m_pControlLogitechExtreme           (new Joystick(CONTROL_JOYSTICK_PORT)),
     m_pDriveXboxGameSir                 (new XboxController(DRIVE_JOYSTICK_PORT)),
     m_pControlXboxGameSir               (new XboxController(CONTROL_JOYSTICK_PORT)),
-    m_pLeftDriveMotors                  (new TalonMotorGroup(NUMBER_OF_LEFT_DRIVE_MOTORS, LEFT_MOTORS_CAN_START_ID, MotorGroupControlMode::CUSTOM, FeedbackDevice::CTRE_MagEncoder_Relative)),
-    m_pRightDriveMotors                 (new TalonMotorGroup(NUMBER_OF_RIGHT_DRIVE_MOTORS, RIGHT_MOTORS_CAN_START_ID, MotorGroupControlMode::CUSTOM, FeedbackDevice::CTRE_MagEncoder_Relative)),
+    m_pLeftDriveMotors                  (new TalonMotorGroup(NUMBER_OF_LEFT_DRIVE_MOTORS, LEFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
+    m_pRightDriveMotors                 (new TalonMotorGroup(NUMBER_OF_RIGHT_DRIVE_MOTORS, RIGHT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
     m_pLedRelay                         (new Relay(LED_RELAY_ID)),
     m_pAutonomousTimer                  (new Timer()),
     m_pInchingDriveTimer                (new Timer()),
@@ -125,13 +125,6 @@ YtaRobot::YtaRobot() :
         }
     }
 
-    // The drive motors on this robot are custom groups of three.
-    // Two drive the same direction, one drives inverse.  Set the parameters.
-    ASSERT(m_pLeftDriveMotors->SetMotorInGroupControlMode(LEFT_MOTORS_CAN_START_ID + 1, MotorGroupControlMode::FOLLOW));
-    ASSERT(m_pLeftDriveMotors->SetMotorInGroupControlMode(LEFT_MOTORS_CAN_START_ID + 2, MotorGroupControlMode::INVERSE));
-    ASSERT(m_pRightDriveMotors->SetMotorInGroupControlMode(RIGHT_MOTORS_CAN_START_ID + 1, MotorGroupControlMode::FOLLOW));
-    ASSERT(m_pRightDriveMotors->SetMotorInGroupControlMode(RIGHT_MOTORS_CAN_START_ID + 2, MotorGroupControlMode::INVERSE));
-    
     // Reset all timers
     m_pAutonomousTimer->Reset();
     m_pInchingDriveTimer->Reset();
