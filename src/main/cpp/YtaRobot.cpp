@@ -30,6 +30,7 @@
 ///
 ////////////////////////////////////////////////////////////////
 YtaRobot::YtaRobot() :
+    m_AutonomousChooser                 (),
     m_pDriverStation                    (&DriverStation::GetInstance()),
     m_pDriveJoystick                    (nullptr),
     m_pControlJoystick                  (nullptr),
@@ -39,8 +40,8 @@ YtaRobot::YtaRobot() :
     m_pControlLogitechExtreme           (new Joystick(CONTROL_JOYSTICK_PORT)),
     m_pDriveXboxGameSir                 (new XboxController(DRIVE_JOYSTICK_PORT)),
     m_pControlXboxGameSir               (new XboxController(CONTROL_JOYSTICK_PORT)),
-    m_pLeftDriveMotors                  (new TalonMotorGroup(NUMBER_OF_LEFT_DRIVE_MOTORS, LEFT_MOTORS_CAN_START_ID, MotorGroupControlMode::CUSTOM, FeedbackDevice::CTRE_MagEncoder_Relative)),
-    m_pRightDriveMotors                 (new TalonMotorGroup(NUMBER_OF_RIGHT_DRIVE_MOTORS, RIGHT_MOTORS_CAN_START_ID, MotorGroupControlMode::CUSTOM, FeedbackDevice::CTRE_MagEncoder_Relative)),
+    m_pLeftDriveMotors                  (new TalonMotorGroup(NUMBER_OF_LEFT_DRIVE_MOTORS, LEFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
+    m_pRightDriveMotors                 (new TalonMotorGroup(NUMBER_OF_RIGHT_DRIVE_MOTORS, RIGHT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
     m_pLedRelay                         (new Relay(LED_RELAY_ID)),
     m_pAutonomousTimer                  (new Timer()),
     m_pInchingDriveTimer                (new Timer()),
@@ -54,14 +55,21 @@ YtaRobot::YtaRobot() :
     m_pToggleProcessedImageTrigger      (new TriggerChangeValues()),
     m_SerialPortBuffer                  (),
     m_pSerialPort                       (new SerialPort(SERIAL_PORT_BAUD_RATE, SerialPort::kMXP, SERIAL_PORT_NUM_DATA_BITS, SerialPort::kParity_None, SerialPort::kStopBits_One)),
-    m_I2cData                           (),
-    m_pI2cPort                          (new I2C(I2C::kMXP, I2C_DEVICE_ADDRESS)),
+    m_I2cRioduinoData                   (),
+    m_pI2cRioduino                      (new I2C(I2C::Port::kMXP, RIODUINO_I2C_DEVICE_ADDRESS)),
     m_RobotMode                         (ROBOT_MODE_NOT_SET),
     m_AllianceColor                     (m_pDriverStation->GetAlliance()),
     m_bDriveSwap                        (false),
     m_bLed                              (false)
 {
     DisplayMessage("Robot constructor.");
+    
+    // Set the autonomous options
+    m_AutonomousChooser.SetDefaultOption(AUTO_ROUTINE_1_STRING, AUTO_ROUTINE_1_STRING);
+    m_AutonomousChooser.AddOption(AUTO_ROUTINE_2_STRING, AUTO_ROUTINE_2_STRING);
+    m_AutonomousChooser.AddOption(AUTO_ROUTINE_3_STRING, AUTO_ROUTINE_3_STRING);
+    m_AutonomousChooser.AddOption(AUTO_TEST_ROUTINE_STRING, AUTO_TEST_ROUTINE_STRING);
+    SmartDashboard::PutData("Autonomous Modes", &m_AutonomousChooser);
     
     // Set the driver input to the correct object
     switch (DRIVE_CONTROLLER_TYPE)
@@ -117,13 +125,6 @@ YtaRobot::YtaRobot() :
         }
     }
 
-    // The drive motors on this robot are custom groups of three.
-    // Two drive the same direction, one drives inverse.  Set the parameters.
-    ASSERT(m_pLeftDriveMotors->SetMotorInGroupControlMode(LEFT_MOTORS_CAN_START_ID + 1, MotorGroupControlMode::FOLLOW));
-    ASSERT(m_pLeftDriveMotors->SetMotorInGroupControlMode(LEFT_MOTORS_CAN_START_ID + 2, MotorGroupControlMode::INVERSE));
-    ASSERT(m_pRightDriveMotors->SetMotorInGroupControlMode(RIGHT_MOTORS_CAN_START_ID + 1, MotorGroupControlMode::FOLLOW));
-    ASSERT(m_pRightDriveMotors->SetMotorInGroupControlMode(RIGHT_MOTORS_CAN_START_ID + 2, MotorGroupControlMode::INVERSE));
-    
     // Reset all timers
     m_pAutonomousTimer->Reset();
     m_pInchingDriveTimer->Reset();
@@ -131,8 +132,12 @@ YtaRobot::YtaRobot() :
     m_pCameraRunTimer->Reset();
     m_pSafetyTimer->Reset();
 
-    // Reset the serial port
+    // Reset the serial port and clear buffer
     m_pSerialPort->Reset();
+    std::memset(&m_SerialPortBuffer, 0U, sizeof(m_SerialPortBuffer));
+
+    // Clear I2C buffer
+    std::memset(&m_I2cRioduinoData, 0U, sizeof(m_I2cRioduinoData));
     
     // Spawn the vision thread
     m_CameraThread.detach();
@@ -386,13 +391,17 @@ void YtaRobot::SerialPortSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::I2cSequence()
 {
-    //uint8_t I2C_STRING[] = "i2c_roborio";
-    std::memset(&m_I2cData, 0U, sizeof(m_I2cData));
+    // Clear the buffer for new data
+    std::memset(&m_I2cRioduinoData, 0U, sizeof(m_I2cRioduinoData));
     
-    if (m_pI2cTimer->Get() > I2C_RUN_INTERVAL_S)
+    // Autonomous is allowed to always get new readings
+    if ((m_pDriverStation->IsAutonomous()) || (m_pI2cTimer->Get() > I2C_RUN_INTERVAL_S))
     {
         // Get the data from the riodiuino
-        //static_cast<void>(m_pI2cPort->Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cData), sizeof(m_I2cData)));
+        //uint8_t I2C_WRITE_STRING[] = "Frc120I2c";
+        //static_cast<void>(m_pI2cRioduino->WriteBulk(&I2C_WRITE_STRING[0], sizeof(I2C_WRITE_STRING)));
+        static_cast<void>(m_pI2cRioduino->ReadOnly(sizeof(m_I2cRioduinoData), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
+        //static_cast<void>(m_pI2cRioduino->Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
         
         // Restart the timer
         m_pI2cTimer->Reset();

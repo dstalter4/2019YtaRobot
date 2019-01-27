@@ -4,8 +4,8 @@
 ///
 /// @details
 /// This is the class declaration for a FRC robot derived from the WPI library
-/// base classes.  The SampleRobot class is the base of a robot application that
-/// will automatically call the Autonomous and OperatorControl methods at the
+/// base classes.  The TimedRobot class is the base of a robot application that
+/// will automatically call appropriate Autonomous and Teleop methods at the
 /// right time as controlled by the switches on the driver station or the field
 /// controls.
 ///
@@ -16,15 +16,16 @@
 #define YTAROBOT_HPP
 
 // SYSTEM INCLUDES
-#include <cmath>                        // for M_PI
-#include <iostream>                     // for cout
+#include <cmath>                                            // for M_PI
+#include <iostream>                                         // for cout
 
 // C INCLUDES
-#include "frc/WPILib.h"                 // for FRC library
+#include "frc/WPILib.h"                                     // for FRC library
 
 // C++ INCLUDES
-#include "TalonMotorGroup.hpp"          // for Talon group motor control
-#include "YtaController.hpp"            // for custom controller interaction
+#include "../../Rioduino/RoborioRioduinoSharedData.hpp"     // for shared data structures
+#include "TalonMotorGroup.hpp"                              // for Talon group motor control
+#include "YtaController.hpp"                                // for custom controller interaction
 
 using namespace frc;
 
@@ -46,7 +47,7 @@ using namespace frc;
 ////////////////////////////////////////////////////////////////
 /// @class YtaRobot
 ///
-/// Derived class from SampleRobot.  The object that will
+/// Derived class from TimedRobot.  The object that will
 /// control all robot functionality.
 ///
 ////////////////////////////////////////////////////////////////
@@ -57,24 +58,24 @@ public:
     // MEMBER FUNCTIONS
     
     // Base robot routines
-    virtual void RobotInit();
-    virtual void RobotPeriodic();
+    virtual void RobotInit() override;
+    virtual void RobotPeriodic() override;
     
     // Autonomous routines
-    virtual void AutonomousInit();
-    virtual void AutonomousPeriodic();
+    virtual void AutonomousInit() override;
+    virtual void AutonomousPeriodic() override;
     
     // Teleop routines
-    virtual void TeleopInit();
-    virtual void TeleopPeriodic();
+    virtual void TeleopInit() override;
+    virtual void TeleopPeriodic() override;
     
     // Test mode routines
-    virtual void TestInit();
-    virtual void TestPeriodic();
+    virtual void TestInit() override;
+    virtual void TestPeriodic() override;
     
     // Robot disabled routines
-    virtual void DisabledInit();
-    virtual void DisabledPeriodic();
+    virtual void DisabledInit() override;
+    virtual void DisabledPeriodic() override;
     
     // Constructor, destructor, copy, assignment
     YtaRobot();
@@ -88,6 +89,7 @@ private:
     typedef DriverStation::Alliance Alliance;
     typedef GenericHID::JoystickHand JoystickHand;
     typedef TalonMotorGroup::MotorGroupControlMode MotorGroupControlMode;
+    typedef RoborioRioduinoSharedData::I2cData I2cData;
     
     // ENUMS
     enum RobotMode
@@ -145,20 +147,6 @@ private:
         
         bool m_bCurrentValue;
         bool m_bOldValue;
-    };
-    
-    struct I2cData
-    {
-        uint8_t m_Header;
-        uint8_t m_FrontSonarA;
-        uint8_t m_FrontSonarB;
-        uint8_t m_LeftSonarA;
-        uint8_t m_LeftSonarB;
-        uint8_t m_BackSonarA;
-        uint8_t m_BackSonarB;
-        uint8_t m_RightSonarA;
-        uint8_t m_RightSonarB;
-        uint8_t m_Footer;
     };
     
     // Displays a message to the RioLog
@@ -250,6 +238,9 @@ private:
     
     // MEMBER VARIABLES
     
+    // Autonomous
+    SendableChooser<std::string>    m_AutonomousChooser;                    // Selects from the dashboard which auto routine to run
+    
     // User Controls
     DriverStation *                 m_pDriverStation;                       // Driver station object for getting selections
     GenericHID *                    m_pDriveJoystick;                       // Base class object for the driver operator
@@ -306,21 +297,21 @@ private:
     TriggerChangeValues *           m_pToggleProcessedImageTrigger;
 
     // Serial port configuration
-    static const int                SERIAL_PORT_BUFFER_SIZE_BYTES           = 1024;
+    static const int                SERIAL_PORT_BUFFER_SIZE_BYTES           = 64;
     static const int                SERIAL_PORT_NUM_DATA_BITS               = 8;
     static const int                SERIAL_PORT_BAUD_RATE                   = 115200;
     static const int                ASCII_0_OFFSET                          = 48;
-    const char *                    SERIAL_PORT_PACKET_HEADER               = "Frc120";
-    const int                       SERIAL_PORT_PACKET_HEADER_SIZE_BYTES    = 6;
+    const char *                    SERIAL_PORT_PACKET_HEADER               = "Frc120Serial";
+    const int                       SERIAL_PORT_PACKET_HEADER_SIZE_BYTES    = sizeof(SERIAL_PORT_PACKET_HEADER);
     char                            m_SerialPortBuffer[SERIAL_PORT_BUFFER_SIZE_BYTES];
 
     // On board serial port
     SerialPort *                    m_pSerialPort;
     
     // I2C configuration
-    static const int                I2C_DEVICE_ADDRESS                      = 4U;
-    I2cData                         m_I2cData;
-    I2C *                           m_pI2cPort;
+    static const int                RIODUINO_I2C_DEVICE_ADDRESS             = 4U;
+    I2cData                         m_I2cRioduinoData;
+    I2C *                           m_pI2cRioduino;
 
     // Misc
     RobotMode                       m_RobotMode;                            // Keep track of the current robot state
@@ -368,6 +359,11 @@ private:
     // (none)
     
     // Misc
+    const std::string               AUTO_ROUTINE_1_STRING                   = "Autonomous Routine 1";
+    const std::string               AUTO_ROUTINE_2_STRING                   = "Autonomous Routine 2";
+    const std::string               AUTO_ROUTINE_3_STRING                   = "Autonomous Routine 3";
+    const std::string               AUTO_TEST_ROUTINE_STRING                = "Autonomous Test Routine";
+
     static const int                OFF                                     = 0;
     static const int                ON                                      = 1;
     static const int                SINGLE_MOTOR                            = 1;

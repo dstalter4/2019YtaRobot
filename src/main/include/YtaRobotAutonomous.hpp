@@ -51,10 +51,10 @@ namespace YtaRobotAutonomous
     // Note: Only enable one autonomous routine!
     // Note: Autonomous routines are currently NOT controlled
     // by physical switches on the robot.
-    static const bool       ROUTINE_1                           = true;
-    static const bool       ROUTINE_2                           = false;
-    static const bool       ROUTINE_3                           = false;
-    static const bool       TEST_ENABLED                        = false;
+    //static const bool       ROUTINE_1                           = true;
+    //static const bool       ROUTINE_2                           = false;
+    //static const bool       ROUTINE_3                           = false;
+    //static const bool       TEST_ENABLED                        = false;
 
     // Autonomous drive speed constants
     static constexpr double DRIVE_SPEED_SLOW                    =  0.30;
@@ -63,9 +63,10 @@ namespace YtaRobotAutonomous
     static constexpr double COUNTERACT_COAST_MOTOR_SPEED        =  0.20;
     
     // Autonomous angle constants
-    static constexpr double FORTY_FIVE_DEGREE_TURN_ANGLE        = 45.00;
-    static constexpr double NINETY_DEGREE_TURN_ANGLE            = 90.00;
-    static constexpr double ONE_EIGHTY_DEGREE_TURN_ANGLE        = 180.0;
+    static const int FORTY_FIVE_DEGREES                         = 45;
+    static const int NINETY_DEGREES                             = 90;
+    static const int ONE_HUNDRED_EIGHTY_DEGREES                 = 180;
+    static const int THREE_HUNDRED_SIXTY_DEGREES                = 360;
     
     // Autonomous delay constants
     static constexpr double COUNTERACT_COAST_TIME_S             =  0.25;
