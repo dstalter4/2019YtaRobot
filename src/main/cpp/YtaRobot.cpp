@@ -55,8 +55,8 @@ YtaRobot::YtaRobot() :
     m_pToggleProcessedImageTrigger      (new TriggerChangeValues()),
     m_SerialPortBuffer                  (),
     m_pSerialPort                       (new SerialPort(SERIAL_PORT_BAUD_RATE, SerialPort::kMXP, SERIAL_PORT_NUM_DATA_BITS, SerialPort::kParity_None, SerialPort::kStopBits_One)),
-    m_I2cData                           (),
-    m_pI2cPort                          (new I2C(I2C::kMXP, I2C_DEVICE_ADDRESS)),
+    m_I2cRioduinoData                   (),
+    m_pI2cRioduino                      (new I2C(I2C::Port::kMXP, RIODUINO_I2C_DEVICE_ADDRESS)),
     m_RobotMode                         (ROBOT_MODE_NOT_SET),
     m_AllianceColor                     (m_pDriverStation->GetAlliance()),
     m_bDriveSwap                        (false),
@@ -132,8 +132,12 @@ YtaRobot::YtaRobot() :
     m_pCameraRunTimer->Reset();
     m_pSafetyTimer->Reset();
 
-    // Reset the serial port
+    // Reset the serial port and clear buffer
     m_pSerialPort->Reset();
+    std::memset(&m_SerialPortBuffer, 0U, sizeof(m_SerialPortBuffer));
+
+    // Clear I2C buffer
+    std::memset(&m_I2cRioduinoData, 0U, sizeof(m_I2cRioduinoData));
     
     // Spawn the vision thread
     m_CameraThread.detach();
@@ -387,13 +391,17 @@ void YtaRobot::SerialPortSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::I2cSequence()
 {
-    //uint8_t I2C_STRING[] = "i2c_roborio";
-    std::memset(&m_I2cData, 0U, sizeof(m_I2cData));
+    // Clear the buffer for new data
+    std::memset(&m_I2cRioduinoData, 0U, sizeof(m_I2cRioduinoData));
     
-    if (m_pI2cTimer->Get() > I2C_RUN_INTERVAL_S)
+    // Autonomous is allowed to always get new readings
+    if ((m_pDriverStation->IsAutonomous()) || (m_pI2cTimer->Get() > I2C_RUN_INTERVAL_S))
     {
         // Get the data from the riodiuino
-        //static_cast<void>(m_pI2cPort->Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cData), sizeof(m_I2cData)));
+        //uint8_t I2C_WRITE_STRING[] = "Frc120I2c";
+        //static_cast<void>(m_pI2cRioduino->WriteBulk(&I2C_WRITE_STRING[0], sizeof(I2C_WRITE_STRING)));
+        static_cast<void>(m_pI2cRioduino->ReadOnly(sizeof(m_I2cRioduinoData), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
+        //static_cast<void>(m_pI2cRioduino->Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
         
         // Restart the timer
         m_pI2cTimer->Reset();
