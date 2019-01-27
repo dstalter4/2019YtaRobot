@@ -51,10 +51,10 @@ namespace YtaRobotAutonomous
     // Note: Only enable one autonomous routine!
     // Note: Autonomous routines are currently NOT controlled
     // by physical switches on the robot.
-    static const bool       ROUTINE_1                           = true;
-    static const bool       ROUTINE_2                           = false;
-    static const bool       ROUTINE_3                           = false;
-    static const bool       TEST_ENABLED                        = false;
+    //static const bool       ROUTINE_1                           = true;
+    //static const bool       ROUTINE_2                           = false;
+    //static const bool       ROUTINE_3                           = false;
+    //static const bool       TEST_ENABLED                        = false;
 
     // Autonomous drive speed constants
     static constexpr double DRIVE_SPEED_SLOW                    =  0.30;

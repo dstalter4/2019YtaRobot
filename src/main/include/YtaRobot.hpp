@@ -250,6 +250,9 @@ private:
     
     // MEMBER VARIABLES
     
+    // Autonomous
+    SendableChooser<std::string>    m_AutonomousChooser;                    // Selects from the dashboard which auto routine to run
+    
     // User Controls
     DriverStation *                 m_pDriverStation;                       // Driver station object for getting selections
     GenericHID *                    m_pDriveJoystick;                       // Base class object for the driver operator
@@ -368,6 +371,11 @@ private:
     // (none)
     
     // Misc
+    const std::string               AUTO_ROUTINE_1_STRING                   = "Autonomous Routine 1";
+    const std::string               AUTO_ROUTINE_2_STRING                   = "Autonomous Routine 2";
+    const std::string               AUTO_ROUTINE_3_STRING                   = "Autonomous Routine 3";
+    const std::string               AUTO_TEST_ROUTINE_STRING                = "Autonomous Test Routine";
+
     static const int                OFF                                     = 0;
     static const int                ON                                      = 1;
     static const int                SINGLE_MOTOR                            = 1;

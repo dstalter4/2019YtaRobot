@@ -61,27 +61,33 @@ void YtaRobot::AutonomousPeriodic()
     // Log a mode change if one occurred
     CheckAndUpdateRobotMode(ROBOT_MODE_AUTONOMOUS);
     
+    // TODO: Figure out how to kick the watchdog from here so it doesn't overrun
+    
     // Change values in the header to control having an
     // autonomous routine and which is selected
-
-    // TODO 2019: Use frc::SendableChooser<std::string>
+    
+    // Get the selected autonomous routine from the smart dashboard
+    std::string selectedAutoRoutineString = m_AutonomousChooser.GetSelected();
     
     // Auto routine 1
-    if ( YtaRobotAutonomous::ROUTINE_1 )
+    //if ( YtaRobotAutonomous::ROUTINE_1 )
+    if (selectedAutoRoutineString == AUTO_ROUTINE_1_STRING)
     {
         DisplayMessage("Auto routine 1.");
         AutonomousRoutine1();
     }
     
     // Auto routine 2
-    else if ( YtaRobotAutonomous::ROUTINE_2 )
+    //else if ( YtaRobotAutonomous::ROUTINE_2 )
+    else if (selectedAutoRoutineString == AUTO_ROUTINE_2_STRING)
     {
         DisplayMessage("Auto routine 2.");
         AutonomousRoutine2();
     }
     
     // Auto routine 3
-    else if ( YtaRobotAutonomous::ROUTINE_3 )
+    //else if ( YtaRobotAutonomous::ROUTINE_3 )
+    else if (selectedAutoRoutineString == AUTO_ROUTINE_3_STRING)
     {
         DisplayMessage("Auto routine 3.");
         AutonomousRoutine3();
@@ -89,14 +95,17 @@ void YtaRobot::AutonomousPeriodic()
 
     /* !!! ONLY ENABLE TEST AUTONOMOUS CODE WHEN TESTING
            SELECT A FUNCTIONING ROUTINE FOR ACTUAL MATCHES !!! */
-    else if ( YtaRobotAutonomous::TEST_ENABLED )
+    //else if ( YtaRobotAutonomous::TEST_ENABLED )
+    else if (selectedAutoRoutineString == AUTO_TEST_ROUTINE_STRING)
     {
+        DisplayMessage("Auto test code.");
         AutonomousTestCode();
     }
 
     else
     {
         // No option was selected; ensure known behavior to avoid issues
+        DisplayMessage("No auto selection made, going idle.");
     }
     
     // Idle until auto is terminated

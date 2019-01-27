@@ -30,6 +30,7 @@
 ///
 ////////////////////////////////////////////////////////////////
 YtaRobot::YtaRobot() :
+    m_AutonomousChooser                 (),
     m_pDriverStation                    (&DriverStation::GetInstance()),
     m_pDriveJoystick                    (nullptr),
     m_pControlJoystick                  (nullptr),
@@ -62,6 +63,13 @@ YtaRobot::YtaRobot() :
     m_bLed                              (false)
 {
     DisplayMessage("Robot constructor.");
+    
+    // Set the autonomous options
+    m_AutonomousChooser.SetDefaultOption(AUTO_ROUTINE_1_STRING, AUTO_ROUTINE_1_STRING);
+    m_AutonomousChooser.AddOption(AUTO_ROUTINE_2_STRING, AUTO_ROUTINE_2_STRING);
+    m_AutonomousChooser.AddOption(AUTO_ROUTINE_3_STRING, AUTO_ROUTINE_3_STRING);
+    m_AutonomousChooser.AddOption(AUTO_TEST_ROUTINE_STRING, AUTO_TEST_ROUTINE_STRING);
+    SmartDashboard::PutData("Autonomous Modes", &m_AutonomousChooser);
     
     // Set the driver input to the correct object
     switch (DRIVE_CONTROLLER_TYPE)
