@@ -18,11 +18,10 @@
 #include "RobotCamera.hpp"                      // for class declaration
 
 // STATIC MEMBER DATA
-cs::UsbCamera                                   RobotCamera::m_Cam0;
-cs::CvSink                                      RobotCamera::m_Cam0Sink;
-cs::UsbCamera                                   RobotCamera::m_Cam1;
-cs::CvSink                                      RobotCamera::m_Cam1Sink;
+RobotCamera::UsbCameraStorage                   RobotCamera::m_UsbCameras;
+RobotCamera::UsbCameraInfo *                    RobotCamera::m_pCurrentUsbCamera;
 cs::CvSource                                    RobotCamera::m_CameraOutput;
+int                                             RobotCamera::m_NumUsbCamerasPresent;
 
 cv::Mat                                         RobotCamera::m_SourceMat;
 cv::Mat                                         RobotCamera::m_ResizeOutputMat;
@@ -38,10 +37,65 @@ std::vector<std::vector<cv::Point>>             RobotCamera::m_FilteredContours;
 
 std::vector<RobotCamera::VisionTargetReport>    RobotCamera::m_ContourTargetReports;
 RobotCamera::VisionTargetReport                 RobotCamera::m_VisionTargetReport;
-RobotCamera::CameraType                         RobotCamera::m_Camera;
 bool                                            RobotCamera::m_bDoFullProcessing;
 int                                             RobotCamera::m_HeartBeat;
 const char *                                    RobotCamera::CAMERA_OUTPUT_NAME = "Camera Output";
+
+
+////////////////////////////////////////////////////////////////
+/// @method RobotCamera::UsbCameraInfo::UsbCameraInfo
+///
+/// Constructor for a UsbCameraInfo object.
+///
+////////////////////////////////////////////////////////////////
+RobotCamera::UsbCameraInfo::UsbCameraInfo(const CameraType camType, int devNum, const int xRes, const int yRes) :
+    m_UsbCam(),
+    m_CamSink(),
+    m_bIsPresent(true),
+    m_DeviceNum(devNum),
+    CAM_TYPE(camType),
+    X_RESOLUTION(xRes),
+    Y_RESOLUTION(yRes)
+{
+    printf("Creating camera %d.\n", devNum);
+
+    // Start image capture, set the resolution and connect the sink
+    m_UsbCam = CameraServer::GetInstance()->StartAutomaticCapture();
+    m_UsbCam.SetResolution(xRes, yRes);
+    m_CamSink = CameraServer::GetInstance()->GetVideo(m_UsbCam);
+}
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method RobotCamera::CreateConfiguredCameras
+///
+/// This method creates camera objects for configured cameras.
+/// It utilizes the static storage buffer in the class and
+/// placement new to properly construct the objects.
+///
+////////////////////////////////////////////////////////////////
+bool RobotCamera::CreateConfiguredCameras()
+{
+    bool bAnyCameraPresent = false;
+
+    if (FRONT_USB_CAMERA_SUPPORTED)
+    {
+        // Placement new - storage is statically allocated
+        (void) new (&m_UsbCameras.m_CamerasInfo[FRONT_USB]) UsbCameraInfo(FRONT_USB, m_NumUsbCamerasPresent++);
+        bAnyCameraPresent = true;
+    }
+
+    if (BACK_USB_CAMERA_SUPPORTED)
+    {
+        // Placement new - storage is statically allocated
+        (void) new (&m_UsbCameras.m_CamerasInfo[BACK_USB]) UsbCameraInfo(BACK_USB, m_NumUsbCamerasPresent++);
+        bAnyCameraPresent = true;
+    }
+
+    return bAnyCameraPresent;
+}
+
 
 
 ////////////////////////////////////////////////////////////////
@@ -53,48 +107,43 @@ const char *                                    RobotCamera::CAMERA_OUTPUT_NAME 
 void RobotCamera::VisionThread()
 {
     // Clear the vision target structure
-    std::memset(&m_VisionTargetReport, 0, sizeof(VisionTargetReport));
+    std::memset(&m_VisionTargetReport, 0U, sizeof(VisionTargetReport));
+    
+    // Create the configured camera objects (the buffer was cleared during static initialization)
+    bool bAnyCameraPresent = CreateConfiguredCameras();
+    
+    // If there were no properly constructed cameras, just loop indefinitely
+    if (!bAnyCameraPresent)
+    {
+        while (true)
+        {
+            // Do nothing
+        }
+    }
     
     // Set the default selected camera
-    m_Camera = FRONT_USB;
+    m_pCurrentUsbCamera = &m_UsbCameras.m_CamerasInfo[FRONT_USB];
     
-    // Start image capture
-    m_Cam0 = CameraServer::GetInstance()->StartAutomaticCapture();//CAMERA_0_DEV_NUM);
-    m_Cam1 = CameraServer::GetInstance()->StartAutomaticCapture();//CAMERA_1_DEV_NUM);
-    
-    // Set image resolution
-    m_Cam0.SetResolution(CAMERA_X_RES, CAMERA_Y_RES);
-    m_Cam1.SetResolution(CAMERA_X_RES, CAMERA_Y_RES);
-    
-    // Connect the sinks and sources
-    m_Cam0Sink = CameraServer::GetInstance()->GetVideo(m_Cam0);
-    m_Cam1Sink = CameraServer::GetInstance()->GetVideo(m_Cam1);
-    m_CameraOutput = CameraServer::GetInstance()->PutVideo(CAMERA_OUTPUT_NAME, CAMERA_X_RES, CAMERA_Y_RES);
+    // Connect the output
+    m_CameraOutput = CameraServer::GetInstance()->PutVideo(CAMERA_OUTPUT_NAME, m_pCurrentUsbCamera->X_RESOLUTION, m_pCurrentUsbCamera->Y_RESOLUTION);
     
     // Set the default image to display
     m_pDashboardMat = &m_SourceMat;
     SmartDashboard::PutString("Camera Output", "Default");
     
-    // Default to full processing unless the robot code says otherwise
-    m_bDoFullProcessing = true;
-    
+    // Default to not doing full processing unless the robot code says otherwise
+    m_bDoFullProcessing = false;
+
     while (true)
     {
+        // Don't call this in production code - it hogs resources
+        UpdateSmartDashboard();
+        
         // First, acquire an image from the currently selected camera
         int grabFrameResult = 0;
-        if (m_Camera == FRONT_USB)
-        {
-            grabFrameResult = m_Cam0Sink.GrabFrame(m_SourceMat);
-        }
-        else if (m_Camera == BACK_USB)
-        {
-            grabFrameResult = m_Cam1Sink.GrabFrame(m_SourceMat);
-        }
-        else
-        {
-        }
+        grabFrameResult = m_pCurrentUsbCamera->m_CamSink.GrabFrame(m_SourceMat);
         
-        // Make sure it was successful
+        // Make sure it was successful before doing more processing
         if (grabFrameResult == 0)
         {
             continue;
@@ -115,9 +164,6 @@ void RobotCamera::VisionThread()
         
         // Display the image to the dashboard
         m_CameraOutput.PutFrame(*m_pDashboardMat);
-        
-        // Don't call this in production code - it hogs resources
-        UpdateSmartDashboard();
     }
 }
 
@@ -490,11 +536,11 @@ void RobotCamera::CalculateReflectiveTapeValues()
     
     // d = (TargetWidthIn * CAMERA_X_RES) / (2 * TargetWidthPix * tan(1/2 * FOVAng))
     // d = (TargetHeightIn * CAMERA_Y_RES) / (2 * TargetHeightPix * tan(1/2 * FOVAng))
-    m_VisionTargetReport.m_CameraDistanceX = (TARGET_WIDTH_INCHES * CAMERA_X_RES) /
+    m_VisionTargetReport.m_CameraDistanceX = (TARGET_WIDTH_INCHES * m_pCurrentUsbCamera->X_RESOLUTION) /
                                              (2.0 * (m_VisionTargetReport.m_BoundingRectWidth) * tan(.5 * CAMERA_FOV_DEGREES * DEGREES_TO_RADIANS));
                                              //(2.0 * (m_VisionTargetReport.m_BoundingRectWidth) * tan(.5 * CALIBRATED_CAMERA_ANGLE * DEGREES_TO_RADIANS));
     
-    m_VisionTargetReport.m_CameraDistanceY = (TARGET_HEIGHT_INCHES * CAMERA_Y_RES) /
+    m_VisionTargetReport.m_CameraDistanceY = (TARGET_HEIGHT_INCHES * m_pCurrentUsbCamera->Y_RESOLUTION) /
                                              (2.0 * (m_VisionTargetReport.m_BoundingRectHeight) * tan(.5 * CAMERA_FOV_DEGREES * DEGREES_TO_RADIANS));
                                              //(2.0 * (m_VisionTargetReport.m_BoundingRectHeight) * tan(.5 * CALIBRATED_CAMERA_ANGLE * DEGREES_TO_RADIANS));
 

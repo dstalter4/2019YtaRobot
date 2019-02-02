@@ -9,7 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // SYSTEM INCLUDES
-// <none>
+#include <iostream>                         // for cout
 
 // C INCLUDES
 #include "frc/WPILib.h"                     // for FRC library
@@ -35,9 +35,10 @@ public:
     
     enum CameraType
     {
+        // These double as array indices, so use caution when modifying them
         FRONT_USB,
         BACK_USB,
-        AXIS
+        MAX_NUM_USB_CAMERAS
     };
     
     // Set whether or not full vision processing can occur
@@ -57,6 +58,9 @@ public:
 
 private:
     
+    // Create the camera objects for any configured cameras
+    static bool CreateConfiguredCameras();
+
     // Update values on the SmartDashboard
     static void UpdateSmartDashboard();
 
@@ -110,13 +114,63 @@ private:
         bool   m_bTargetInRange;            // Remember the last result from full vision processing
         bool   m_bIsValid;                  // Indicates if the current report is valid
     };
+
+    // A structure to hold information about a USB camera.
+    // If Axis camera support is ever needed, this
+    // will probably have to derive from a base class.
+    struct UsbCameraInfo
+    {
+        cs::UsbCamera       m_UsbCam;                       // The camera object
+        cs::CvSink          m_CamSink;                      // The sink for the camera
+        bool                m_bIsPresent;                   // Indicates there is actual camera info for this entry
+        int                 m_DeviceNum;                    // The hardware device number for the camera
+        const CameraType    CAM_TYPE;                       // Camera type (e.g. front or back)
+        const int           X_RESOLUTION;                   // Camera x resolution
+        const int           Y_RESOLUTION;                   // Camera y resolution
+
+        // The values for resolution apparently matter, as
+        // nothing shows up in the driver station at lower resolutions.
+        static const int DEFAULT_X_RESOLUTION = 640;
+        static const int DEFAULT_Y_RESOLUTION = 480;
+        
+        // Consructor
+        UsbCameraInfo(const CameraType camType, int devNum, const int xRes = DEFAULT_X_RESOLUTION, const int yRes = DEFAULT_Y_RESOLUTION);
+    };
     
-    // Camera, sinks, sources
-    static cs::UsbCamera                        m_Cam0;                             // USB camera 0
-    static cs::CvSink                           m_Cam0Sink;                         // Sink for camera 0
-    static cs::UsbCamera                        m_Cam1;                             // USB camera 1
-    static cs::CvSink                           m_Cam1Sink;                         // Sink for camera 1
+    // Represents the memory where the information on USB camera will be stored
+    union UsbCameraStorage
+    {
+        // The storage as raw bytes and the UsbCameraInfo objects
+        uint8_t m_RawStorage[MAX_NUM_USB_CAMERAS * sizeof(UsbCameraInfo)];
+        UsbCameraInfo m_CamerasInfo[MAX_NUM_USB_CAMERAS];
+        
+        // Constructor
+        UsbCameraStorage()
+        {
+            // Just zero out the memory
+            std::memset(&m_RawStorage, 0U, sizeof(UsbCameraStorage));
+        }
+        
+        // The destructor should never be called, but implement it anyway
+        ~UsbCameraStorage()
+        {
+            for (int i = 0; i < MAX_NUM_USB_CAMERAS; i++)
+            {
+                if (m_CamerasInfo[i].m_bIsPresent)
+                {
+                    // These might not be strictly needed, but it's safer to destroy the object
+                    m_CamerasInfo[i].m_UsbCam.~UsbCamera();
+                    m_CamerasInfo[i].m_CamSink.~CvSink();
+                }
+            }
+        }
+    };
+    
+    // Camera related variables
+    static UsbCameraStorage                     m_UsbCameras;                       // Memory for storing the USB camera objects
+    static UsbCameraInfo *                      m_pCurrentUsbCamera;                // Pointer to the currently selected USB camera object   
     static cs::CvSource                         m_CameraOutput;                     // Output source for processed images
+    static int                                  m_NumUsbCamerasPresent;             // How many cameras are present on the robot
     
     // Mats
     static cv::Mat                              m_SourceMat;                        // The originating source mat from the current camera
@@ -135,17 +189,14 @@ private:
     // Misc
     static std::vector<VisionTargetReport>      m_ContourTargetReports;             // Stores information about the contours currently visible
     static VisionTargetReport                   m_VisionTargetReport;               // Information about the vision target
-    static CameraType                           m_Camera;                           // Keep track of the current camera to process information from
     static bool                                 m_bDoFullProcessing;                // Indicates whether or not full image processing should occur
     static int                                  m_HeartBeat;                        // Keep alive with the C++ dashboard
     
     // CONSTANTS
     
+    static const bool                           FRONT_USB_CAMERA_SUPPORTED          = true;
+    static const bool                           BACK_USB_CAMERA_SUPPORTED           = false;
     static const char *                         CAMERA_OUTPUT_NAME;
-    //static const int                            CAMERA_0_DEV_NUM                    = 0;
-    //static const int                            CAMERA_1_DEV_NUM                    = 1;
-    static const int                            CAMERA_X_RES                        = 320;
-    static const int                            CAMERA_Y_RES                        = 240;
     
     static constexpr double                     TARGET_WIDTH_INCHES                 =  2.0;
     static constexpr double                     TARGET_HEIGHT_INCHES                = 16.0;
@@ -194,7 +245,15 @@ inline void RobotCamera::SetFullProcessing(bool bState)
 ////////////////////////////////////////////////////////////////
 inline void RobotCamera::SetCamera(CameraType camera)
 {
-    m_Camera = camera;
+    // Make sure the camera is present before trying to switch
+    if (m_UsbCameras.m_CamerasInfo[camera].m_bIsPresent)
+    {
+        m_pCurrentUsbCamera = &m_UsbCameras.m_CamerasInfo[camera];
+    }
+    else
+    {
+        std::cout << "Desired camera not present/configured." << std::endl;
+    }
 }
 
 
@@ -207,5 +266,6 @@ inline void RobotCamera::SetCamera(CameraType camera)
 ////////////////////////////////////////////////////////////////
 inline void RobotCamera::ToggleCamera()
 {
-    m_Camera = (m_Camera == FRONT_USB) ? BACK_USB : FRONT_USB;
+    CameraType nextCam = (m_pCurrentUsbCamera->CAM_TYPE == FRONT_USB) ? BACK_USB : FRONT_USB;
+    SetCamera(nextCam);
 }
