@@ -32,7 +32,6 @@ using namespace frc;
 ////////////////////////////////////////////////////////////////
 namespace YtaRobotAutonomous
 {
-//public:
     // TYPEDEFS
     // (none)
     
@@ -63,10 +62,10 @@ namespace YtaRobotAutonomous
     static constexpr double COUNTERACT_COAST_MOTOR_SPEED        =  0.20;
     
     // Autonomous angle constants
-    static const int FORTY_FIVE_DEGREES                         = 45;
-    static const int NINETY_DEGREES                             = 90;
-    static const int ONE_HUNDRED_EIGHTY_DEGREES                 = 180;
-    static const int THREE_HUNDRED_SIXTY_DEGREES                = 360;
+    static const int        FORTY_FIVE_DEGREES                  = 45;
+    static const int        NINETY_DEGREES                      = 90;
+    static const int        ONE_HUNDRED_EIGHTY_DEGREES          = 180;
+    static const int        THREE_HUNDRED_SIXTY_DEGREES         = 360;
     
     // Autonomous delay constants
     static constexpr double COUNTERACT_COAST_TIME_S             =  0.25;

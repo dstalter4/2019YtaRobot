@@ -16,6 +16,7 @@
 // (none)
 
 // C++ INCLUDES
+#include "RobotUtils.hpp"       // for DisplayMessage(), DisplayFormattedMessage()
 #include "YtaRobot.hpp"         // for robot class declaration
 
 
@@ -28,7 +29,7 @@
 ////////////////////////////////////////////////////////////////
 void YtaRobot::TestInit()
 {
-    DisplayMessage("TestInit called.");
+    RobotUtils::DisplayMessage("TestInit called.");
 }
 
 
@@ -78,14 +79,14 @@ void YtaRobot::TeleopTestCode()
     double x = m_pAccelerometer->GetX();
     double y = m_pAccelerometer->GetY();
     double z = m_pAccelerometer->GetZ();
-    printf("x: %f, y: %f, z: %f\n", x, y, z);
+    RobotUtils::DisplayFormattedMessage("x: %f, y: %f, z: %f\n", x, y, z);
 
     // Sample code for testing the detect trigger change code
     TriggerChangeValues testValues;
     testValues.m_bCurrentValue = m_pControlJoystick->GetRawButton(10);
     if ( testValues.DetectChange() )
     {
-        printf("Trigger change detected!\n");
+        RobotUtils::DisplayMessage("Trigger change detected!");
     }
 }
 

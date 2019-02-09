@@ -16,32 +16,18 @@
 #define YTAROBOT_HPP
 
 // SYSTEM INCLUDES
-#include <cmath>                                            // for M_PI
-#include <iostream>                                         // for cout
+#include <cmath>                                // for M_PI
 
 // C INCLUDES
-#include "frc/WPILib.h"                                     // for FRC library
+#include "frc/WPILib.h"                         // for FRC library
 
 // C++ INCLUDES
-#include "../../Rioduino/RoborioRioduinoSharedData.hpp"     // for shared data structures
-#include "TalonMotorGroup.hpp"                              // for Talon group motor control
-#include "YtaController.hpp"                                // for custom controller interaction
+#include "RobotI2c.hpp"                         // for GetGyroData()
+#include "RobotUtils.hpp"                       // for ASSERT, DEBUG_PRINTS
+#include "TalonMotorGroup.hpp"                  // for Talon group motor control
+#include "YtaController.hpp"                    // for custom controller interaction
 
 using namespace frc;
-
-// MACROS
-#define ASSERT(condition)                                   \
-    do                                                      \
-    {                                                       \
-        if (!(condition))                                   \
-        {                                                   \
-            std::cout << "Robot code ASSERT!" << std::endl; \
-            std::cout << "File: " << __FILE__ << std::endl; \
-            std::cout << "Line: " << __LINE__ << std::endl; \
-            assert(false);                                  \
-        }                                                   \
-    }                                                       \
-    while (false);
 
 
 ////////////////////////////////////////////////////////////////
@@ -122,6 +108,13 @@ private:
         LEFT_TURN,
         RIGHT_TURN
     };
+
+    enum GyroType
+    {
+        ADXRS450,
+        ANALOG,
+        BNO055
+    };
     
     enum SonarDriveState
     {
@@ -149,9 +142,6 @@ private:
         bool m_bOldValue;
     };
     
-    // Displays a message to the RioLog
-    inline void DisplayMessage(const char * pMessage);
-    
     // Checks for a robot state change and logs a message if so
     inline void CheckAndUpdateRobotMode(RobotMode robotMode);
     
@@ -172,7 +162,7 @@ private:
     inline double GetSonarSensorValue(Ultrasonic * pSensor);
    
     // Get a reading from the gyro sensor
-    inline double GetGyroValue(AnalogGyro * pSensor);
+    inline double GetGyroValue(GyroType gyroType, AnalogGyro * pSensor = nullptr);
     
     // Convert a distance in inches to encoder turns
     int GetEncoderRotationsFromInches(int inches, double diameter, bool bUseQuadEncoding = true);
@@ -215,18 +205,12 @@ private:
     // Main sequence for updating solenoid states
     void SolenoidSequence();
 
-    // Main sequence for grabbing values from the sonars
-    void SonarSensorSequence();
-    
-    // Main sequence for reading gyro values and related processing
-    void GyroSequence();
-
     // Main sequence for interaction with the serial port
     void SerialPortSequence();
     
     // Main sequence for I2C interaction
     void I2cSequence();
-
+    
     // Main sequence for vision processing
     void CameraSequence();
     
@@ -287,7 +271,8 @@ private:
     BuiltInAccelerometer *          m_pAccelerometer;                       // Built in roborio accelerometer
     
     // Gyro
-    ADXRS450_Gyro *                 m_pGyro;
+    ADXRS450_Gyro *                 m_pGyro;                                // SPI port FRC gyro
+    int                             m_Bno055Angle;                          // Angle from the BNO055 sensor on the RIOduino
 
     // Camera
     // Note: Only need to have a thread here and tie it to
@@ -373,7 +358,6 @@ private:
     static const int                SCALE_TO_PERCENT                        = 100;
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
     static const char               NULL_CHARACTER                          = '\0';
-    static const bool               DEBUG_PRINTS                            = true;
     
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
@@ -469,24 +453,57 @@ inline double YtaRobot::GetThrottleControl(YtaController * pController)
 /// @method YtaRobot::GetGyroValue
 ///
 /// This method is used to get a value from an analog gyro
-/// sensor.  If an analog gyro object is passed in, that object
-/// will be used; otherwise the reading is obtained from the SPI
-/// port Analog Device gyro board.
+/// sensor.  There are three possible places a gyro could be
+/// connected: analog sensor, the on board SPI port (ADXRS450),
+/// or externally (BNO055 on a RIOduino).  This method will
+/// obtain a value from the sensor corresponding to the passed
+/// in parameter.
 ///
 ////////////////////////////////////////////////////////////////
-inline double YtaRobot::GetGyroValue(AnalogGyro * pSensor)
+inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
 {
     double value = 0.0;
-    if (pSensor != nullptr)
+    
+    switch (gyroType)
     {
-        value = pSensor->GetAngle();
-    }
-    else
-    {
-        value = m_pGyro->GetAngle();
+        case ADXRS450:
+        {
+            value = m_pGyro->GetAngle();
+            break;
+        }
+        case ANALOG:
+        {
+            if (pSensor != nullptr)
+            {
+                value = pSensor->GetAngle();
+            }
+            break;
+        }
+        case BNO055:
+        {
+            // Read the angle
+            m_Bno055Angle = RobotI2c::GetGyroData()->m_xAxisInfo.m_Angle;
+            
+            // Reapply negative sign if needed
+            if (RobotI2c::GetGyroData()->m_xAxisInfo.m_bIsNegative)
+            {
+                m_Bno055Angle *= -1;
+            }
+            
+            //RobotUtils::DisplayFormattedMessage("BNO055 angle: %i\n", m_Bno055Angle);
+            value = static_cast<double>(m_Bno055Angle);
+            
+            break;
+        }
+        default:
+        {
+            // Should never happen
+            ASSERT(false);
+            break;
+        }
     }
     
-    if (DEBUG_PRINTS)
+    if (RobotUtils::DEBUG_PRINTS)
     {
         SmartDashboard::PutNumber("Gyro angle", value);
     }
@@ -497,7 +514,7 @@ inline double YtaRobot::GetGyroValue(AnalogGyro * pSensor)
 
 
 ////////////////////////////////////////////////////////////////
-/// @method YtaRobot::UpdateSonarSensor
+/// @method YtaRobot::GetSonarSensorValue
 ///
 /// This method is used to get a value from the sonar sensor.
 /// It is intended to be used to turn a sensor briefly on and
@@ -515,23 +532,6 @@ inline double YtaRobot::GetSonarSensorValue(Ultrasonic * pSensor)
     pSensor->SetEnabled(false);
     return sensorValue;
     */
-}
-
-
-
-////////////////////////////////////////////////////////////////
-/// @method YtaRobot::DisplayMessage
-///
-/// Displays a message to the RioLog as long as debug prints are
-/// enabled.
-///
-////////////////////////////////////////////////////////////////
-inline void YtaRobot::DisplayMessage(const char * pMessage)
-{
-    if (DEBUG_PRINTS)
-    {
-        std::cout << pMessage << std::endl;
-    }
 }
 
 
@@ -567,11 +567,11 @@ void YtaRobot::CheckAndUpdateRobotMode(RobotMode robotMode)
     {
         // First display the exit message for the old mode
         switch (m_RobotMode)
-        DisplayMessage(MODE_CHANGE_EXIT_MESSAGES[m_RobotMode]);
+        RobotUtils::DisplayMessage(MODE_CHANGE_EXIT_MESSAGES[m_RobotMode]);
 
         // Enter the new mode and display an enter message
         m_RobotMode = robotMode;
-        DisplayMessage(MODE_CHANGE_ENTER_MESSAGES[m_RobotMode]);
+        RobotUtils::DisplayMessage(MODE_CHANGE_ENTER_MESSAGES[m_RobotMode]);
     }
 }
 

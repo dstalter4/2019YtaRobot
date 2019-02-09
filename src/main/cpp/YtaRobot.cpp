@@ -50,6 +50,7 @@ YtaRobot::YtaRobot() :
     m_pSafetyTimer                      (new Timer()),
     m_pAccelerometer                    (new BuiltInAccelerometer),
     m_pGyro                             (new ADXRS450_Gyro()),
+    m_Bno055Angle                       (),
     m_CameraThread                      (RobotCamera::VisionThread),
     m_pToggleFullProcessingTrigger      (new TriggerChangeValues()),
     m_pToggleProcessedImageTrigger      (new TriggerChangeValues()),
@@ -62,7 +63,7 @@ YtaRobot::YtaRobot() :
     m_bDriveSwap                        (false),
     m_bLed                              (false)
 {
-    DisplayMessage("Robot constructor.");
+    RobotUtils::DisplayMessage("Robot constructor.");
     
     // Set the autonomous options
     m_AutonomousChooser.SetDefaultOption(AUTO_ROUTINE_1_STRING, AUTO_ROUTINE_1_STRING);
@@ -153,7 +154,7 @@ YtaRobot::YtaRobot() :
 ////////////////////////////////////////////////////////////////
 void YtaRobot::RobotInit()
 {
-    DisplayMessage("RobotInit called.");
+    RobotUtils::DisplayMessage("RobotInit called.");
 }
 
 
@@ -170,7 +171,7 @@ void YtaRobot::RobotPeriodic()
     static bool bRobotPeriodicStarted = false;
     if (!bRobotPeriodicStarted)
     {
-        DisplayMessage("RobotPeriodic called.");
+        RobotUtils::DisplayMessage("RobotPeriodic called.");
         bRobotPeriodicStarted = true;
     }
 }
@@ -228,7 +229,7 @@ void YtaRobot::InitialStateSetup()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::TeleopInit()
 {
-    DisplayMessage("TeleopInit called.");
+    RobotUtils::DisplayMessage("TeleopInit called.");
     
     // Autonomous should have left things in a known state, but
     // just in case clear everything.
@@ -258,10 +259,6 @@ void YtaRobot::TeleopPeriodic()
     //LedSequence();
 
     //SolenoidSequence();
-
-    //SonarSensorSequence();
-    
-    //GyroSequence();
 
     //SerialPortSequence();
     
@@ -309,36 +306,6 @@ void YtaRobot::SolenoidSequence()
 
 
 ////////////////////////////////////////////////////////////////
-/// @method YtaRobot::SonarSensorSequence
-///
-/// This method contains the main workflow for getting updates
-/// from the sonar sensors.  In order to not interfere with
-/// each other, each sensor is enabled/disabled and checked
-/// individually.
-///
-////////////////////////////////////////////////////////////////
-void YtaRobot::SonarSensorSequence()
-{
-}
-
-
-
-////////////////////////////////////////////////////////////////
-/// @method YtaRobot::GyroSequence
-///
-/// This method contains the main workflow for getting updates
-/// from the gyro sensors and processing related to those
-/// readings.
-///
-////////////////////////////////////////////////////////////////
-void YtaRobot::GyroSequence()
-{
-    GetGyroValue(nullptr);
-}
-
-
-
-////////////////////////////////////////////////////////////////
 /// @method YtaRobot::SerialPortSequence
 ///
 /// This method contains the main workflow for interaction with
@@ -366,15 +333,15 @@ void YtaRobot::SerialPortSequence()
             // Sanity check it
             if (command >= 0 && command <= 9)
             {
-                printf("Received a valid packet, command: %d\n", command);
+                RobotUtils::DisplayFormattedMessage("Received a valid packet, command: %d\n", command);
             }
             else
             {
-                printf("Invalid command received: %d\n", command);
+                RobotUtils::DisplayFormattedMessage("Invalid command received: %d\n", command);
             }
         }
 
-        printf(m_SerialPortBuffer);
+        RobotUtils::DisplayFormattedMessage(m_SerialPortBuffer);
     }
     m_SerialPortBuffer[0] = NULL_CHARACTER;
     */
@@ -634,7 +601,7 @@ void YtaRobot::DirectionalInch(double speed, EncoderDirection direction)
 ////////////////////////////////////////////////////////////////
 void YtaRobot::DisabledInit()
 {
-    DisplayMessage("DisabledInit called.");
+    RobotUtils::DisplayMessage("DisabledInit called.");
     
     // All motors off
     m_pLeftDriveMotors->Set(OFF);

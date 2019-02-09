@@ -33,7 +33,7 @@ bool YtaRobot::AutonomousGyroLeftTurn(double destAngle, double turnSpeed)
     // 20xx LEFT TURNS DECREASE GYRO ANGLE
     // Left turn is left motors back, right motors forward
     
-    double startAngle = m_pGyro->GetAngle();
+    double startAngle = GetGyroValue(BNO055);
     
     // Left turns are right motors forward, left motors reverse
     m_pLeftDriveMotors->Set(-turnSpeed);
@@ -43,14 +43,14 @@ bool YtaRobot::AutonomousGyroLeftTurn(double destAngle, double turnSpeed)
     m_pSafetyTimer->Start();
     
     // Angle will be decreasing
-    while ((m_pGyro->GetAngle() > (startAngle - destAngle)) && (m_pSafetyTimer->Get() <= SAFETY_TIMER_MAX_VALUE))
+    while ((GetGyroValue(BNO055) > (startAngle - destAngle)) && (m_pSafetyTimer->Get() <= SAFETY_TIMER_MAX_VALUE))
     {
         if (!m_pDriverStation->IsAutonomous())
         {
             break;
         }
         
-        SmartDashboard::PutNumber("Gyro angle", m_pGyro->GetAngle());
+        SmartDashboard::PutNumber("Gyro angle", GetGyroValue(BNO055));
     }
     
     m_pLeftDriveMotors->Set(OFF);
@@ -85,7 +85,7 @@ bool YtaRobot::AutonomousGyroRightTurn(double destAngle, double turnSpeed)
     // 20xx RIGHT TURNS INCREASE GYRO ANGLE
     // Right turn is left motors forward, right motors back
     
-    double startAngle = m_pGyro->GetAngle();
+    double startAngle = GetGyroValue(BNO055);
     
     // Right turns are left motors forward, right motors reverse
     m_pLeftDriveMotors->Set(turnSpeed);
@@ -95,14 +95,14 @@ bool YtaRobot::AutonomousGyroRightTurn(double destAngle, double turnSpeed)
     m_pSafetyTimer->Start();
     
     // Angle will be increasing
-    while ((m_pGyro->GetAngle() < (startAngle + destAngle)) && (m_pSafetyTimer->Get() <= SAFETY_TIMER_MAX_VALUE))
+    while ((GetGyroValue(BNO055) < (startAngle + destAngle)) && (m_pSafetyTimer->Get() <= SAFETY_TIMER_MAX_VALUE))
     {
         if (!m_pDriverStation->IsAutonomous())
         {
             break;
         }
         
-        SmartDashboard::PutNumber("Gyro angle", m_pGyro->GetAngle());
+        SmartDashboard::PutNumber("Gyro angle", GetGyroValue(BNO055));
     }
     
     m_pLeftDriveMotors->Set(OFF);
