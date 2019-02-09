@@ -131,14 +131,16 @@ private:
         const CameraType    CAM_TYPE;                       // Camera type (e.g. front or back)
         const int           X_RESOLUTION;                   // Camera x resolution
         const int           Y_RESOLUTION;                   // Camera y resolution
+        const int           FPS;                            // Camera frames per second
 
         // The values for resolution apparently matter, as
         // nothing shows up in the driver station at lower resolutions.
         static const int DEFAULT_X_RESOLUTION = 640;
         static const int DEFAULT_Y_RESOLUTION = 480;
+        static const int DEFAULT_FPS = 30;
         
         // Consructor
-        UsbCameraInfo(const CameraType camType, int devNum, const int xRes = DEFAULT_X_RESOLUTION, const int yRes = DEFAULT_Y_RESOLUTION);
+        UsbCameraInfo(const CameraType camType, int devNum, const int xRes = DEFAULT_X_RESOLUTION, const int yRes = DEFAULT_Y_RESOLUTION, const int fps = DEFAULT_FPS);
     };
     
     // Represents the memory where the information on USB camera will be stored

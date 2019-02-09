@@ -49,20 +49,22 @@ const char *                                    RobotCamera::CAMERA_OUTPUT_NAME 
 /// Constructor for a UsbCameraInfo object.
 ///
 ////////////////////////////////////////////////////////////////
-RobotCamera::UsbCameraInfo::UsbCameraInfo(const CameraType camType, int devNum, const int xRes, const int yRes) :
+RobotCamera::UsbCameraInfo::UsbCameraInfo(const CameraType camType, int devNum, const int xRes, const int yRes, const int fps) :
     m_UsbCam(),
     m_CamSink(),
     m_bIsPresent(true),
     m_DeviceNum(devNum),
     CAM_TYPE(camType),
     X_RESOLUTION(xRes),
-    Y_RESOLUTION(yRes)
+    Y_RESOLUTION(yRes),
+    FPS(fps)
 {
-    printf("Creating camera %d.\n", devNum);
+    RobotUtils::DisplayFormattedMessage("Creating camera %d.\n", devNum);
 
     // Start image capture, set the resolution and connect the sink
     m_UsbCam = CameraServer::GetInstance()->StartAutomaticCapture();
     m_UsbCam.SetResolution(xRes, yRes);
+    m_UsbCam.SetFPS(fps);
     m_CamSink = CameraServer::GetInstance()->GetVideo(m_UsbCam);
 }
 
