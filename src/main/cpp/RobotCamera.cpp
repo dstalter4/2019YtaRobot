@@ -16,6 +16,7 @@
 
 // C++ INCLUDES
 #include "RobotCamera.hpp"                      // for class declaration
+#include "RobotUtils.hpp"                       // for DisplayMessage(), DisplayFormattedMessage()
 
 // STATIC MEMBER DATA
 RobotCamera::UsbCameraStorage                   RobotCamera::m_UsbCameras;
@@ -106,6 +107,9 @@ bool RobotCamera::CreateConfiguredCameras()
 ////////////////////////////////////////////////////////////////
 void RobotCamera::VisionThread()
 {
+    // Indicate the thread has been started
+    RobotUtils::DisplayMessage("Vision thread detached.");
+    
     // Clear the vision target structure
     std::memset(&m_VisionTargetReport, 0U, sizeof(VisionTargetReport));
     

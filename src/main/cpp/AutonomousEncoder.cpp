@@ -15,6 +15,7 @@
 // (none)
 
 // C++ INCLUDES
+#include "RobotUtils.hpp"               // for DEBUG_PRINTS
 #include "YtaRobot.hpp"                 // for robot class declaration
 #include "YtaRobotAutonomous.hpp"       // for autonomous declarations
 
@@ -156,7 +157,7 @@ void YtaRobot::AutonomousEncoderDrive(double speed, double distance, EncoderDire
         m_pRightDriveMotors->Set(rightDriveSpeed * rightDriveScale);
         
         // Send stats back to the smart dashboard
-        if (DEBUG_PRINTS)
+        if (RobotUtils::DEBUG_PRINTS)
         {
             SmartDashboard::PutNumber("Enc. L: ", leftEncVal);
             SmartDashboard::PutNumber("Enc. R: ", rightEncVal);

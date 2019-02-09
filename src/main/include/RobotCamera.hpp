@@ -8,20 +8,24 @@
 /// Copyright (c) 2019 Youth Technology Academy
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifndef ROBOTCAMERA_HPP
+#define ROBOTCAMERA_HPP
+
 // SYSTEM INCLUDES
 #include <iostream>                         // for cout
 
 // C INCLUDES
 #include "frc/WPILib.h"                     // for FRC library
 #include "cameraserver/CameraServer.h"      // for camera support
-#include "opencv2/imgproc/imgproc.hpp"
+
+// C++ INCLUDES
+#include "RobotUtils.hpp"                   // for DisplayMessage()
+#include "opencv2/imgproc/imgproc.hpp"      // for vision structures and routines
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/types.hpp"
 
-// C++ INCLUDES
-// (none)
-
 using namespace frc;
+
 
 ////////////////////////////////////////////////////////////////
 /// @class RobotCamera
@@ -252,7 +256,7 @@ inline void RobotCamera::SetCamera(CameraType camera)
     }
     else
     {
-        std::cout << "Desired camera not present/configured." << std::endl;
+        RobotUtils::DisplayMessage("Desired camera not present/configured.");
     }
 }
 
@@ -269,3 +273,5 @@ inline void RobotCamera::ToggleCamera()
     CameraType nextCam = (m_pCurrentUsbCamera->CAM_TYPE == FRONT_USB) ? BACK_USB : FRONT_USB;
     SetCamera(nextCam);
 }
+
+#endif // ROBOTCAMERA_HPP

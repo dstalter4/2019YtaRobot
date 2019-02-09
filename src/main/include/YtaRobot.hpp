@@ -16,32 +16,18 @@
 #define YTAROBOT_HPP
 
 // SYSTEM INCLUDES
-#include <cmath>                                            // for M_PI
-#include <iostream>                                         // for cout
+#include <cmath>                                // for M_PI
 
 // C INCLUDES
-#include "frc/WPILib.h"                                     // for FRC library
+#include "frc/WPILib.h"                         // for FRC library
 
 // C++ INCLUDES
-#include "../../Rioduino/RoborioRioduinoSharedData.hpp"     // for shared data structures
-#include "TalonMotorGroup.hpp"                              // for Talon group motor control
-#include "YtaController.hpp"                                // for custom controller interaction
+#include "RobotI2c.hpp"                         // for GetGyroData()
+#include "RobotUtils.hpp"                       // for ASSERT, DEBUG_PRINTS
+#include "TalonMotorGroup.hpp"                  // for Talon group motor control
+#include "YtaController.hpp"                    // for custom controller interaction
 
 using namespace frc;
-
-// MACROS
-#define ASSERT(condition)                                   \
-    do                                                      \
-    {                                                       \
-        if (!(condition))                                   \
-        {                                                   \
-            std::cout << "Robot code ASSERT!" << std::endl; \
-            std::cout << "File: " << __FILE__ << std::endl; \
-            std::cout << "Line: " << __LINE__ << std::endl; \
-            assert(false);                                  \
-        }                                                   \
-    }                                                       \
-    while (false);
 
 
 ////////////////////////////////////////////////////////////////
@@ -149,9 +135,6 @@ private:
         bool m_bOldValue;
     };
     
-    // Displays a message to the RioLog
-    inline void DisplayMessage(const char * pMessage);
-    
     // Checks for a robot state change and logs a message if so
     inline void CheckAndUpdateRobotMode(RobotMode robotMode);
     
@@ -215,18 +198,12 @@ private:
     // Main sequence for updating solenoid states
     void SolenoidSequence();
 
-    // Main sequence for grabbing values from the sonars
-    void SonarSensorSequence();
-    
-    // Main sequence for reading gyro values and related processing
-    void GyroSequence();
-
     // Main sequence for interaction with the serial port
     void SerialPortSequence();
     
     // Main sequence for I2C interaction
     void I2cSequence();
-
+    
     // Main sequence for vision processing
     void CameraSequence();
     
@@ -373,7 +350,6 @@ private:
     static const int                SCALE_TO_PERCENT                        = 100;
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
     static const char               NULL_CHARACTER                          = '\0';
-    static const bool               DEBUG_PRINTS                            = true;
     
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
@@ -497,7 +473,7 @@ inline double YtaRobot::GetGyroValue(AnalogGyro * pSensor)
 
 
 ////////////////////////////////////////////////////////////////
-/// @method YtaRobot::UpdateSonarSensor
+/// @method YtaRobot::GetSonarSensorValue
 ///
 /// This method is used to get a value from the sonar sensor.
 /// It is intended to be used to turn a sensor briefly on and
@@ -515,23 +491,6 @@ inline double YtaRobot::GetSonarSensorValue(Ultrasonic * pSensor)
     pSensor->SetEnabled(false);
     return sensorValue;
     */
-}
-
-
-
-////////////////////////////////////////////////////////////////
-/// @method YtaRobot::DisplayMessage
-///
-/// Displays a message to the RioLog as long as debug prints are
-/// enabled.
-///
-////////////////////////////////////////////////////////////////
-inline void YtaRobot::DisplayMessage(const char * pMessage)
-{
-    if (DEBUG_PRINTS)
-    {
-        std::cout << pMessage << std::endl;
-    }
 }
 
 
@@ -567,11 +526,11 @@ void YtaRobot::CheckAndUpdateRobotMode(RobotMode robotMode)
     {
         // First display the exit message for the old mode
         switch (m_RobotMode)
-        DisplayMessage(MODE_CHANGE_EXIT_MESSAGES[m_RobotMode]);
+        RobotUtils::DisplayMessage(MODE_CHANGE_EXIT_MESSAGES[m_RobotMode]);
 
         // Enter the new mode and display an enter message
         m_RobotMode = robotMode;
-        DisplayMessage(MODE_CHANGE_ENTER_MESSAGES[m_RobotMode]);
+        RobotUtils::DisplayMessage(MODE_CHANGE_ENTER_MESSAGES[m_RobotMode]);
     }
 }
 

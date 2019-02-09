@@ -15,6 +15,7 @@
 // (none)
 
 // C++ INCLUDES
+#include "RobotUtils.hpp"               // for DisplayMessage()
 #include "YtaRobot.hpp"                 // for robot class declaration
 #include "YtaRobotAutonomous.hpp"       // for autonomous declarations
 
@@ -29,5 +30,5 @@
 void YtaRobot::AutonomousRoutine2()
 {
     // Returning from here will enter the idle state until autonomous is over
-    DisplayMessage("Auto routine 2 done.");
+    RobotUtils::DisplayMessage("Auto routine 2 done.");
 }
