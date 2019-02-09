@@ -75,7 +75,6 @@ private:
     typedef DriverStation::Alliance Alliance;
     typedef GenericHID::JoystickHand JoystickHand;
     typedef TalonMotorGroup::MotorGroupControlMode MotorGroupControlMode;
-    typedef RoborioRioduinoSharedData::I2cData I2cData;
     
     // ENUMS
     enum RobotMode
@@ -263,7 +262,6 @@ private:
     // Timers
     Timer *                         m_pAutonomousTimer;                     // Time things during autonomous
     Timer *                         m_pInchingDriveTimer;                   // Keep track of an inching drive operation
-    Timer *                         m_pI2cTimer;                            // Keep track of how often to do I2C operations
     Timer *                         m_pCameraRunTimer;                      // Keep track of how often to do camera intense code runs
     Timer *                         m_pSafetyTimer;                         // Fail safe in case critical operations don't complete
     
@@ -294,10 +292,8 @@ private:
     SerialPort *                    m_pSerialPort;
     
     // I2C configuration
-    static const int                RIODUINO_I2C_DEVICE_ADDRESS             = 4U;
-    I2cData                         m_I2cRioduinoData;
-    I2C *                           m_pI2cRioduino;
-
+    std::thread                     m_I2cThread;
+    
     // Misc
     RobotMode                       m_RobotMode;                            // Keep track of the current robot state
     Alliance                        m_AllianceColor;                        // Color reported by driver station during a match
@@ -359,6 +355,8 @@ private:
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
     static const char               NULL_CHARACTER                          = '\0';
     
+    static const unsigned           I2C_RUN_INTERVAL_MS                     = 500U;
+    
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
     static constexpr double         CONTROL_THROTTLE_VALUE_RANGE            =  0.65;
@@ -372,7 +370,6 @@ private:
     static constexpr double         INCHING_DRIVE_DELAY_S                   =  0.10;
     
     static constexpr double         CAMERA_RUN_INTERVAL_S                   =  1.00;
-    static constexpr double         I2C_RUN_INTERVAL_S                      =  0.10;
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
     
     static const int                SONAR_LED_WARN_DIST_INCHES              = 3;

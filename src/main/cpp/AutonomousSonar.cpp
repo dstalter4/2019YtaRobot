@@ -15,6 +15,7 @@
 // (none)
 
 // C++ INCLUDES
+#include "RobotI2c.hpp"                 // for GetSonarData()
 #include "YtaRobot.hpp"                 // for robot class declaration
 #include "YtaRobotAutonomous.hpp"       // for autonomous declarations
 
@@ -43,20 +44,20 @@ bool YtaRobot::AutonomousSonarDrive(SonarDriveDirection driveDirection, SonarDri
     {
         case FORWARD_GUIDE:
         {
-            destGuideSensorA = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_FrontDistances.m_SonarA;
-            destGuideSensorB = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_FrontDistances.m_SonarB;
+            destGuideSensorA = RobotI2c::GetSonarData()->m_FrontDistances.m_SonarA;
+            destGuideSensorB = RobotI2c::GetSonarData()->m_FrontDistances.m_SonarB;
             switch (sideDirection)
             {
                 case LEFT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarB;
-                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarA;
+                    frontGuideSensor = RobotI2c::GetSonarData()->m_LeftDistances.m_SonarB;
+                    backGuideSensor = RobotI2c::GetSonarData()->m_LeftDistances.m_SonarA;
                     break;
                 }
                 case RIGHT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarA;
-                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarB;
+                    frontGuideSensor = RobotI2c::GetSonarData()->m_RightDistances.m_SonarA;
+                    backGuideSensor = RobotI2c::GetSonarData()->m_RightDistances.m_SonarB;
                     break;
                 }
                 default:
@@ -69,20 +70,20 @@ bool YtaRobot::AutonomousSonarDrive(SonarDriveDirection driveDirection, SonarDri
         }
         case REVERSE_GUIDE:
         {
-            destGuideSensorA = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_BackDistances.m_SonarA;
-            destGuideSensorB = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_BackDistances.m_SonarB;
+            destGuideSensorA = RobotI2c::GetSonarData()->m_BackDistances.m_SonarA;
+            destGuideSensorB = RobotI2c::GetSonarData()->m_BackDistances.m_SonarB;
             switch (sideDirection)
             {
                 case LEFT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarA;
-                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_LeftDistances.m_SonarB;
+                    frontGuideSensor = RobotI2c::GetSonarData()->m_LeftDistances.m_SonarA;
+                    backGuideSensor = RobotI2c::GetSonarData()->m_LeftDistances.m_SonarB;
                     break;
                 }
                 case RIGHT_GUIDE:
                 {
-                    frontGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarB;
-                    backGuideSensor = m_I2cRioduinoData.m_DataBuffer.m_SonarData.m_RightDistances.m_SonarA;
+                    frontGuideSensor = RobotI2c::GetSonarData()->m_RightDistances.m_SonarB;
+                    backGuideSensor = RobotI2c::GetSonarData()->m_RightDistances.m_SonarA;
                     break;
                 }
                 default:

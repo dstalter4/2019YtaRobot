@@ -41,6 +41,9 @@ void YtaRobot::AutonomousInit()
     
     // Autonomous needs full camera processing
     RobotCamera::SetFullProcessing(true);
+    
+    // Indicate to the I2C thread to get data more often
+    RobotI2c::SetThreadUpdateRate(YtaRobotAutonomous::I2C_THREAD_UPDATE_RATE_MS);
 }
 
 

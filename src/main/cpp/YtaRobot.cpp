@@ -21,6 +21,8 @@
 // C++ INCLUDES
 #include "YtaRobot.hpp"                 // for class declaration (and other headers)
 #include "RobotCamera.hpp"              // for interacting with cameras
+#include "RobotI2c.hpp"                 // for I2cThread()
+#include "RobotUtils.hpp"               // for DisplayMessage()
 
 
 ////////////////////////////////////////////////////////////////
@@ -45,7 +47,6 @@ YtaRobot::YtaRobot() :
     m_pLedRelay                         (new Relay(LED_RELAY_ID)),
     m_pAutonomousTimer                  (new Timer()),
     m_pInchingDriveTimer                (new Timer()),
-    m_pI2cTimer                         (new Timer()),
     m_pCameraRunTimer                   (new Timer()),
     m_pSafetyTimer                      (new Timer()),
     m_pAccelerometer                    (new BuiltInAccelerometer),
@@ -56,8 +57,7 @@ YtaRobot::YtaRobot() :
     m_pToggleProcessedImageTrigger      (new TriggerChangeValues()),
     m_SerialPortBuffer                  (),
     m_pSerialPort                       (new SerialPort(SERIAL_PORT_BAUD_RATE, SerialPort::kMXP, SERIAL_PORT_NUM_DATA_BITS, SerialPort::kParity_None, SerialPort::kStopBits_One)),
-    m_I2cRioduinoData                   (),
-    m_pI2cRioduino                      (new I2C(I2C::Port::kMXP, RIODUINO_I2C_DEVICE_ADDRESS)),
+    m_I2cThread                         (RobotI2c::I2cThread),
     m_RobotMode                         (ROBOT_MODE_NOT_SET),
     m_AllianceColor                     (m_pDriverStation->GetAlliance()),
     m_bDriveSwap                        (false),
@@ -129,19 +129,16 @@ YtaRobot::YtaRobot() :
     // Reset all timers
     m_pAutonomousTimer->Reset();
     m_pInchingDriveTimer->Reset();
-    m_pI2cTimer->Reset();
     m_pCameraRunTimer->Reset();
     m_pSafetyTimer->Reset();
 
     // Reset the serial port and clear buffer
     m_pSerialPort->Reset();
     std::memset(&m_SerialPortBuffer, 0U, sizeof(m_SerialPortBuffer));
-
-    // Clear I2C buffer
-    std::memset(&m_I2cRioduinoData, 0U, sizeof(m_I2cRioduinoData));
     
-    // Spawn the vision thread
+    // Spawn the vision and I2C threads
     m_CameraThread.detach();
+    m_I2cThread.detach();
 }
 
 
@@ -206,10 +203,6 @@ void YtaRobot::InitialStateSetup()
     m_pSafetyTimer->Stop();
     m_pSafetyTimer->Reset();
     
-    // Start I2C timer
-    m_pI2cTimer->Reset();
-    m_pI2cTimer->Start();
-    
     // Start the camera timer
     m_pCameraRunTimer->Reset();
     m_pCameraRunTimer->Start();
@@ -237,6 +230,9 @@ void YtaRobot::TeleopInit()
     
     // Tele-op won't do detailed processing of the images unless instructed to
     RobotCamera::SetFullProcessing(false);
+    
+    // Indicate to the I2C thread to get data less often
+    RobotI2c::SetThreadUpdateRate(I2C_RUN_INTERVAL_MS);
 }
 
 
@@ -358,21 +354,7 @@ void YtaRobot::SerialPortSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::I2cSequence()
 {
-    // Clear the buffer for new data
-    std::memset(&m_I2cRioduinoData, 0U, sizeof(m_I2cRioduinoData));
-    
-    // Autonomous is allowed to always get new readings
-    if ((m_pDriverStation->IsAutonomous()) || (m_pI2cTimer->Get() > I2C_RUN_INTERVAL_S))
-    {
-        // Get the data from the riodiuino
-        //uint8_t I2C_WRITE_STRING[] = "Frc120I2c";
-        //static_cast<void>(m_pI2cRioduino->WriteBulk(&I2C_WRITE_STRING[0], sizeof(I2C_WRITE_STRING)));
-        static_cast<void>(m_pI2cRioduino->ReadOnly(sizeof(m_I2cRioduinoData), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
-        //static_cast<void>(m_pI2cRioduino->Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
-        
-        // Restart the timer
-        m_pI2cTimer->Reset();
-    }
+    // Remove this function once everything is moved to RobotI2C
 }
 
 
