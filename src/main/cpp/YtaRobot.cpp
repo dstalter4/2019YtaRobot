@@ -49,7 +49,7 @@ YtaRobot::YtaRobot() :
     m_pCameraRunTimer                   (new Timer()),
     m_pSafetyTimer                      (new Timer()),
     m_pAccelerometer                    (new BuiltInAccelerometer),
-    m_pGyro                             (new ADXRS450_Gyro()),
+    m_pAdxrs450Gyro                     (new ADXRS450_Gyro()),
     m_Bno055Angle                       (),
     m_CameraThread                      (RobotCamera::VisionThread),
     m_pToggleFullProcessingTrigger      (new TriggerChangeValues()),

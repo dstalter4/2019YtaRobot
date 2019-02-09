@@ -271,7 +271,7 @@ private:
     BuiltInAccelerometer *          m_pAccelerometer;                       // Built in roborio accelerometer
     
     // Gyro
-    ADXRS450_Gyro *                 m_pGyro;                                // SPI port FRC gyro
+    ADXRS450_Gyro *                 m_pAdxrs450Gyro;                        // SPI port FRC gyro
     int                             m_Bno055Angle;                          // Angle from the BNO055 sensor on the RIOduino
 
     // Camera
@@ -468,7 +468,7 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
     {
         case ADXRS450:
         {
-            value = m_pGyro->GetAngle();
+            value = m_pAdxrs450Gyro->GetAngle();
             break;
         }
         case ANALOG:
