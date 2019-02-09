@@ -29,7 +29,7 @@
 ////////////////////////////////////////////////////////////////
 void YtaRobot::AutonomousInit()
 {
-    DisplayMessage("AutonomousInit called.");
+    RobotUtils::DisplayMessage("AutonomousInit called.");
     
     // Put everything in a stable state
     InitialStateSetup();
@@ -73,7 +73,7 @@ void YtaRobot::AutonomousPeriodic()
     //if ( YtaRobotAutonomous::ROUTINE_1 )
     if (selectedAutoRoutineString == AUTO_ROUTINE_1_STRING)
     {
-        DisplayMessage("Auto routine 1.");
+        RobotUtils::DisplayMessage("Auto routine 1.");
         AutonomousRoutine1();
     }
     
@@ -81,7 +81,7 @@ void YtaRobot::AutonomousPeriodic()
     //else if ( YtaRobotAutonomous::ROUTINE_2 )
     else if (selectedAutoRoutineString == AUTO_ROUTINE_2_STRING)
     {
-        DisplayMessage("Auto routine 2.");
+        RobotUtils::DisplayMessage("Auto routine 2.");
         AutonomousRoutine2();
     }
     
@@ -89,7 +89,7 @@ void YtaRobot::AutonomousPeriodic()
     //else if ( YtaRobotAutonomous::ROUTINE_3 )
     else if (selectedAutoRoutineString == AUTO_ROUTINE_3_STRING)
     {
-        DisplayMessage("Auto routine 3.");
+        RobotUtils::DisplayMessage("Auto routine 3.");
         AutonomousRoutine3();
     }
 
@@ -98,18 +98,18 @@ void YtaRobot::AutonomousPeriodic()
     //else if ( YtaRobotAutonomous::TEST_ENABLED )
     else if (selectedAutoRoutineString == AUTO_TEST_ROUTINE_STRING)
     {
-        DisplayMessage("Auto test code.");
+        RobotUtils::DisplayMessage("Auto test code.");
         AutonomousTestCode();
     }
 
     else
     {
         // No option was selected; ensure known behavior to avoid issues
-        DisplayMessage("No auto selection made, going idle.");
+        RobotUtils::DisplayMessage("No auto selection made, going idle.");
     }
     
     // Idle until auto is terminated
-    DisplayMessage("Auto idle loop.");
+    RobotUtils::DisplayMessage("Auto idle loop.");
     while ( m_pDriverStation->IsAutonomous() && m_pDriverStation->IsEnabled() )
     {
     }

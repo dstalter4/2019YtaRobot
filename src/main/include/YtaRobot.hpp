@@ -108,6 +108,13 @@ private:
         LEFT_TURN,
         RIGHT_TURN
     };
+
+    enum GyroType
+    {
+        ADXRS450,
+        ANALOG,
+        BNO055
+    };
     
     enum SonarDriveState
     {
@@ -155,7 +162,7 @@ private:
     inline double GetSonarSensorValue(Ultrasonic * pSensor);
    
     // Get a reading from the gyro sensor
-    inline double GetGyroValue(AnalogGyro * pSensor);
+    inline double GetGyroValue(GyroType gyroType, AnalogGyro * pSensor = nullptr);
     
     // Convert a distance in inches to encoder turns
     int GetEncoderRotationsFromInches(int inches, double diameter, bool bUseQuadEncoding = true);
@@ -264,7 +271,8 @@ private:
     BuiltInAccelerometer *          m_pAccelerometer;                       // Built in roborio accelerometer
     
     // Gyro
-    ADXRS450_Gyro *                 m_pGyro;
+    ADXRS450_Gyro *                 m_pGyro;                                // SPI port FRC gyro
+    int                             m_Bno055Angle;                          // Angle from the BNO055 sensor on the RIOduino
 
     // Camera
     // Note: Only need to have a thread here and tie it to
@@ -445,24 +453,57 @@ inline double YtaRobot::GetThrottleControl(YtaController * pController)
 /// @method YtaRobot::GetGyroValue
 ///
 /// This method is used to get a value from an analog gyro
-/// sensor.  If an analog gyro object is passed in, that object
-/// will be used; otherwise the reading is obtained from the SPI
-/// port Analog Device gyro board.
+/// sensor.  There are three possible places a gyro could be
+/// connected: analog sensor, the on board SPI port (ADXRS450),
+/// or externally (BNO055 on a RIOduino).  This method will
+/// obtain a value from the sensor corresponding to the passed
+/// in parameter.
 ///
 ////////////////////////////////////////////////////////////////
-inline double YtaRobot::GetGyroValue(AnalogGyro * pSensor)
+inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
 {
     double value = 0.0;
-    if (pSensor != nullptr)
+    
+    switch (gyroType)
     {
-        value = pSensor->GetAngle();
-    }
-    else
-    {
-        value = m_pGyro->GetAngle();
+        case ADXRS450:
+        {
+            value = m_pGyro->GetAngle();
+            break;
+        }
+        case ANALOG:
+        {
+            if (pSensor != nullptr)
+            {
+                value = pSensor->GetAngle();
+            }
+            break;
+        }
+        case BNO055:
+        {
+            // Read the angle
+            m_Bno055Angle = RobotI2c::GetGyroData()->m_xAxisInfo.m_Angle;
+            
+            // Reapply negative sign if needed
+            if (RobotI2c::GetGyroData()->m_xAxisInfo.m_bIsNegative)
+            {
+                m_Bno055Angle *= -1;
+            }
+            
+            //RobotUtils::DisplayFormattedMessage("BNO055 angle: %i\n", m_Bno055Angle);
+            value = static_cast<double>(m_Bno055Angle);
+            
+            break;
+        }
+        default:
+        {
+            // Should never happen
+            ASSERT(false);
+            break;
+        }
     }
     
-    if (DEBUG_PRINTS)
+    if (RobotUtils::DEBUG_PRINTS)
     {
         SmartDashboard::PutNumber("Gyro angle", value);
     }
