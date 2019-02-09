@@ -73,7 +73,6 @@ private:
   static double m_RobotCenterPoint;
   
   // Constants
-  static const int          ROBORIO_I2C_ADDRESS         = 4;
   static const int          BNO055_SENSOR_ID            = 55;
   static const int          BNO055_SAMPLE_RATE_MS       = 75;
   static const int          HEART_BEAT_RATE_MS          = 1000;
@@ -137,7 +136,7 @@ void YtaRioduino::Initialize()
   DisplayMessage("FRC 120 RIOduino.");
   
   // Open the I2C port
-  Wire.begin(ROBORIO_I2C_ADDRESS);
+  Wire.begin(RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
   Wire.onReceive(I2cOnReceive);
   Wire.onRequest(I2cOnRequest);
   
@@ -240,7 +239,7 @@ void YtaRioduino::I2cOnRequest()
 void YtaRioduino::BuildI2cData()
 {
   // Indicate gyro data is being sent over
-  m_I2cData.m_DataSelection = I2cData::GYRO_DATA;
+  m_I2cData.m_DataSelection = RoborioRioduinoSharedData::I2cDataSelection::GYRO_DATA;
   
   // First get the robot angle since it will be manipulated before sending
   double robotAngle = m_RobotAngle;

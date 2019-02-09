@@ -33,6 +33,15 @@
 ////////////////////////////////////////////////////////////////
 namespace RoborioRioduinoSharedData
 {
+    static const int I2C_DEVICE_ADDRESS = 4U;
+        
+    // Controls which data structure is active in a transfer
+    enum I2cDataSelection : uint8_t
+    {
+        SONAR_DATA,
+        GYRO_DATA
+    };
+    
     // Data structure for transferring sonar data
     struct SonarI2cData
     {
@@ -60,19 +69,14 @@ namespace RoborioRioduinoSharedData
         AxisInfo m_xAxisInfo;
         AxisInfo m_yAxisInfo;
         AxisInfo m_zAxisInfo;
+
+        static const uint16_t MAX_VALID_ANGLE_VALUE = 180U;
     };
     
     // Represents the I2C data that will be transferred
     struct I2cData
     {
         typedef uint16_t HeaderFooterType;
-        
-        // Controls which data structure is active in a transfer
-        enum I2cDataSelection : uint8_t
-        {
-            SONAR_DATA,
-            GYRO_DATA
-        };
         
         // From debugging, it looks like I2C transactions are limited to 32 bytes
         static const uint16_t I2C_DATA_BUFFER_SIZE_BYTES = 32U - (2 * sizeof(HeaderFooterType) - sizeof(I2cDataSelection));
