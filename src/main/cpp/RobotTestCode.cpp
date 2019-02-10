@@ -48,6 +48,25 @@ void YtaRobot::TestPeriodic()
 
     //AutonomousTestCode();
     TeleopTestCode();
+    
+    // Example code using standard library delays and time tracking
+    static std::chrono::time_point<std::chrono::high_resolution_clock> currentTime;
+    static std::chrono::time_point<std::chrono::high_resolution_clock> oldTime;
+    
+    currentTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = currentTime - oldTime;
+    
+    // Run for 100ms, sleep for 100ms
+    const unsigned RUN_SLEEP_INTERVAL_MS = 100U;
+    if (elapsed.count() > RUN_SLEEP_INTERVAL_MS)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        std::this_thread::sleep_for(std::chrono::milliseconds(RUN_SLEEP_INTERVAL_MS));
+        auto end = std::chrono::high_resolution_clock::now();
+        
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::cout << "Slept for " << elapsed.count() << " ms." << std::endl;
+    }
 }
 
 
