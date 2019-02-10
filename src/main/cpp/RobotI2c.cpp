@@ -36,20 +36,16 @@ unsigned    RobotI2c::m_ThreadUpdateRateMs = DEFAULT_UPDATE_RATE_MS;
 void RobotI2c::I2cThread()
 {
     RobotUtils::DisplayMessage("I2C thread detached.");
-    while (true) {}
     
     // Main loop
     while (true)
     {
+        // Get and process new I2C data
         UpdateI2cData();
         UnpackI2cData();
         
-        // Experiment with sleeping and how often things run
-        auto start = std::chrono::high_resolution_clock::now();
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> elapsed = end-start;
-        std::cout << "Waited " << elapsed.count() << " ms\n";
+        // Sleep for a bit to not flood the RIOduino with transactions
+        std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadUpdateRateMs));
     }
 }
 
