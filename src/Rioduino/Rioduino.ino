@@ -73,6 +73,8 @@ private:
   static double m_RobotCenterPoint;
   
   // Constants
+  static const int          DEBUG_RED_LED_PIN           = 6;
+  static const int          DEBUG_GREEN_LED_PIN         = 7;
   static const int          BNO055_SENSOR_ID            = 55;
   static const int          BNO055_SAMPLE_RATE_MS       = 75;
   static const int          HEART_BEAT_RATE_MS          = 1000;
@@ -134,6 +136,10 @@ void YtaRioduino::Initialize()
   // Start up the serial port
   Serial.begin(115200);
   DisplayMessage("FRC 120 RIOduino.");
+  
+  // Configure debug pins
+  pinMode(DEBUG_RED_LED_PIN, OUTPUT);
+  pinMode(DEBUG_GREEN_LED_PIN, OUTPUT);
   
   // Open the I2C port
   Wire.begin(RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
@@ -247,6 +253,9 @@ void YtaRioduino::BuildI2cData()
   // Check if it's negative
   if (robotAngle < 0.0)
   {
+    digitalWrite(DEBUG_RED_LED_PIN, HIGH);
+    digitalWrite(DEBUG_GREEN_LED_PIN, LOW);
+    
     m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_bIsNegative = true;
     
     // For simplicity with the different architectures, always send a positive angle
@@ -254,11 +263,14 @@ void YtaRioduino::BuildI2cData()
   }
   else
   {
+    digitalWrite(DEBUG_RED_LED_PIN, LOW);
+    digitalWrite(DEBUG_GREEN_LED_PIN, HIGH);
+    
     m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_bIsNegative = false;
   }
   
   // Set the angle, deliberately converting to an integer value
-  m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_Angle = static_cast<uint16_t>(robotAngle);
+  m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_Angle = static_cast<uint16_t>(round(robotAngle));
 }
 
 

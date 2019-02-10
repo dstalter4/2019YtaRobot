@@ -22,7 +22,7 @@
 
 // STATIC MEMBER DATA
 I2cData     RobotI2c::m_I2cRioduinoData;
-I2C         RobotI2c::m_pI2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
+I2C         RobotI2c::m_I2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
 bool        RobotI2c::m_bI2cDataValid = false;
 unsigned    RobotI2c::m_ThreadUpdateRateMs = DEFAULT_UPDATE_RATE_MS;
 
@@ -36,20 +36,16 @@ unsigned    RobotI2c::m_ThreadUpdateRateMs = DEFAULT_UPDATE_RATE_MS;
 void RobotI2c::I2cThread()
 {
     RobotUtils::DisplayMessage("I2C thread detached.");
-    while (true) {}
     
     // Main loop
     while (true)
     {
+        // Get and process new I2C data
         UpdateI2cData();
         UnpackI2cData();
         
-        // Experiment with sleeping and how often things run
-        auto start = std::chrono::high_resolution_clock::now();
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> elapsed = end-start;
-        std::cout << "Waited " << elapsed.count() << " ms\n";
+        // Sleep for a bit to not flood the RIOduino with transactions
+        std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadUpdateRateMs));
     }
 }
 
@@ -76,13 +72,13 @@ void RobotI2c::UnpackI2cData()
             case I2cDataSelection::GYRO_DATA:
             {
                 // Read the angle
-                uint16_t & rRobotAngle = m_I2cRioduinoData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_Angle;
+                uint16_t * pRobotAngle = &m_I2cRioduinoData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_Angle;
                 
                 // Make sure a valid angle came over
-                if (rRobotAngle > RoborioRioduinoSharedData::GyroI2cData::MAX_VALID_ANGLE_VALUE)
+                if (*pRobotAngle > RoborioRioduinoSharedData::GyroI2cData::MAX_VALID_ANGLE_VALUE)
                 {
                     RobotUtils::DisplayMessage("Invalid angle received in I2C transfer.");
-                    rRobotAngle = 0;
+                    *pRobotAngle = 0;
                 }
                 
                 break;
@@ -98,6 +94,16 @@ void RobotI2c::UnpackI2cData()
     }
     else
     {
-        RobotUtils::DisplayMessage("Invalid I2C metadata.");
+        if (DEBUG_I2C_TRANSACTIONS)
+        {
+            RobotUtils::DisplayMessage("Invalid I2C metadata.  Dumping buffer...");
+            
+            uint8_t * pData = reinterpret_cast<uint8_t *>(&m_I2cRioduinoData);
+            for (int i = 0; i < sizeof(m_I2cRioduinoData); i++)
+            {
+                printf("%x ", *pData++);
+            }
+            printf("\n");
+        }
     }
 }

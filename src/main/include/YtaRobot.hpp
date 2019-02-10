@@ -479,15 +479,15 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
         case BNO055:
         {
             // Read the angle
-            m_Bno055Angle = RobotI2c::GetGyroData()->m_xAxisInfo.m_Angle;
+            GyroI2cData * pGyroData = RobotI2c::GetGyroData();
+            m_Bno055Angle = pGyroData->m_xAxisInfo.m_Angle;
             
             // Reapply negative sign if needed
-            if (RobotI2c::GetGyroData()->m_xAxisInfo.m_bIsNegative)
+            if (pGyroData->m_xAxisInfo.m_bIsNegative)
             {
                 m_Bno055Angle *= -1;
             }
             
-            //RobotUtils::DisplayFormattedMessage("BNO055 angle: %i\n", m_Bno055Angle);
             value = static_cast<double>(m_Bno055Angle);
             
             break;
