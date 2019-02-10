@@ -22,7 +22,7 @@
 
 // STATIC MEMBER DATA
 I2cData     RobotI2c::m_I2cRioduinoData;
-I2C         RobotI2c::m_pI2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
+I2C         RobotI2c::m_I2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
 bool        RobotI2c::m_bI2cDataValid = false;
 unsigned    RobotI2c::m_ThreadUpdateRateMs = DEFAULT_UPDATE_RATE_MS;
 

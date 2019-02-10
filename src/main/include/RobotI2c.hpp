@@ -21,6 +21,11 @@
 #include "RobotUtils.hpp"                                   // for DisplayMessage()
 #include "../../Rioduino/RoborioRioduinoSharedData.hpp"     // for shared data structures
 
+/// CAUTION: Forcibly remove build objects if changes       ///
+///          are made to the shared header!  The build      ///
+///          system is not properly updating dependencies   ///
+///          when there is a relative path!                 ///
+
 using namespace frc;
 using namespace RoborioRioduinoSharedData;
 
@@ -74,11 +79,12 @@ private:
     
     // I2C configuration
     static I2cData      m_I2cRioduinoData;
-    static I2C          m_pI2cRioduino;
+    static I2C          m_I2cRioduino;
     static bool         m_bI2cDataValid;
     static unsigned int m_ThreadUpdateRateMs;
     
-    static const unsigned DEFAULT_UPDATE_RATE_MS = 10U;
+    static const bool       DEBUG_I2C_TRANSACTIONS = false;
+    static const unsigned   DEFAULT_UPDATE_RATE_MS = 100U;
 };
 
 
@@ -110,9 +116,9 @@ inline void RobotI2c::UpdateI2cData()
     
     // Get the data from the riodiuino
     //uint8_t I2C_WRITE_STRING[] = "Frc120I2c";
-    //static_cast<void>(m_pI2cRioduino.WriteBulk(&I2C_WRITE_STRING[0], sizeof(I2C_WRITE_STRING)));
-    static_cast<void>(m_pI2cRioduino.ReadOnly(sizeof(m_I2cRioduinoData), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
-    //static_cast<void>(m_pI2cRioduino.Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
+    //static_cast<void>(m_I2cRioduino.WriteBulk(&I2C_WRITE_STRING[0], sizeof(I2C_WRITE_STRING)));
+    static_cast<void>(m_I2cRioduino.ReadOnly(sizeof(m_I2cRioduinoData), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
+    //static_cast<void>(m_I2cRioduino.Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
 }
 
 
