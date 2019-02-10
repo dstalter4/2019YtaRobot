@@ -98,6 +98,16 @@ void RobotI2c::UnpackI2cData()
     }
     else
     {
-        RobotUtils::DisplayMessage("Invalid I2C metadata.");
+        if (DEBUG_I2C_TRANSACTIONS)
+        {
+            RobotUtils::DisplayMessage("Invalid I2C metadata.  Dumping buffer...");
+            
+            uint8_t * pData = reinterpret_cast<uint8_t *>(&m_I2cRioduinoData);
+            for (int i = 0; i < sizeof(m_I2cRioduinoData); i++)
+            {
+                printf("%x ", *pData++);
+            }
+            printf("\n");
+        }
     }
 }
