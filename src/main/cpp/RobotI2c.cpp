@@ -76,13 +76,13 @@ void RobotI2c::UnpackI2cData()
             case I2cDataSelection::GYRO_DATA:
             {
                 // Read the angle
-                uint16_t & rRobotAngle = m_I2cRioduinoData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_Angle;
+                uint16_t * pRobotAngle = &m_I2cRioduinoData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_Angle;
                 
                 // Make sure a valid angle came over
-                if (rRobotAngle > RoborioRioduinoSharedData::GyroI2cData::MAX_VALID_ANGLE_VALUE)
+                if (*pRobotAngle > RoborioRioduinoSharedData::GyroI2cData::MAX_VALID_ANGLE_VALUE)
                 {
                     RobotUtils::DisplayMessage("Invalid angle received in I2C transfer.");
-                    rRobotAngle = 0;
+                    *pRobotAngle = 0;
                 }
                 
                 break;
