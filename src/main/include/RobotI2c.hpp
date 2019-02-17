@@ -126,17 +126,24 @@ inline void RobotI2c::UpdateI2cData()
 ////////////////////////////////////////////////////////////////
 /// @method RobotI2c::GetSonarData
 ///
-/// Returns the I2C sonar data from the RIOduino.
+/// Returns the I2C sonar data from the RIOduino or a nullptr if
+/// the data isn't valid.
 ///
 ////////////////////////////////////////////////////////////////
 inline SonarI2cData * RobotI2c::GetSonarData()
 {
-    if (m_I2cRioduinoData.m_DataSelection != I2cDataSelection::SONAR_DATA)
+    SonarI2cData * pSonarData = nullptr;
+
+    if (m_I2cRioduinoData.m_DataSelection == I2cDataSelection::SONAR_DATA)
+    {
+        pSonarData = &m_I2cRioduinoData.m_DataBuffer.m_SonarData;
+    }
+    else
     {
         RobotUtils::DisplayMessage("Received data was not selected as sonar, could be invalid!");
     }
     
-    return &m_I2cRioduinoData.m_DataBuffer.m_SonarData;
+    return pSonarData;
 }
 
 
@@ -144,17 +151,24 @@ inline SonarI2cData * RobotI2c::GetSonarData()
 ////////////////////////////////////////////////////////////////
 /// @method RobotI2c::GetGyroData
 ///
-/// Returns the I2C gyro data from the RIOduino.
+/// Returns the I2C gyro data from the RIOduino or a nullptr if
+/// the data isn't valid.
 ///
 ////////////////////////////////////////////////////////////////
 inline GyroI2cData * RobotI2c::GetGyroData()
 {
-    if (m_I2cRioduinoData.m_DataSelection != I2cDataSelection::GYRO_DATA)
+    GyroI2cData * pGyroData = nullptr;
+
+    if (m_I2cRioduinoData.m_DataSelection == I2cDataSelection::GYRO_DATA)
+    {
+        pGyroData = &m_I2cRioduinoData.m_DataBuffer.m_GyroData;
+    }
+    else
     {
         RobotUtils::DisplayMessage("Received data was not selected as gyro, could be invalid!");
     }
     
-    return &m_I2cRioduinoData.m_DataBuffer.m_GyroData;
+    return pGyroData;
 }
 
 #endif // ROBOTI2C_HPP
