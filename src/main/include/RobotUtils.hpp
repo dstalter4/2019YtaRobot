@@ -88,7 +88,7 @@ namespace RobotUtils
             // It's ok to pass the pointer here instead of a formatted
             // string since the callers of this function are well defined.
             DISABLE_WARNING("-Wformat-nonliteral")
-            printf(pMessage, argPtr);
+            vprintf(pMessage, argPtr);
             ENABLE_WARNING("-Wformat-nonliteral")
             
             va_end(argPtr);
