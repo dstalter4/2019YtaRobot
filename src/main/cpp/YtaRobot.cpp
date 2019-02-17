@@ -360,7 +360,18 @@ void YtaRobot::SerialPortSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::I2cSequence()
 {
-    // Remove this function once everything is moved to RobotI2C
+    /*
+    static std::chrono::time_point<std::chrono::high_resolution_clock> currentTime;
+    static std::chrono::time_point<std::chrono::high_resolution_clock> oldTime;
+    currentTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = currentTime - oldTime;
+    if (elapsed.count() > 1000)
+    {
+        double angle = GetGyroValue(BNO055);
+        RobotUtils::DisplayFormattedMessage("BNO055: %f\n", angle);
+        oldTime = currentTime;
+    }
+    */
 }
 
 
