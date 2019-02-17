@@ -87,38 +87,6 @@ void RobotI2c::I2cThread()
             }
         }
     }
-    
-    // Paranoia
-    return;
-    
-    // Below is the handshake approach instead of interrupt approach
-    
-    // Main loop
-    while (true)
-    {
-        // Tell the RIOduino to get new data
-        m_DigitalOutputToRioduino.Set(true);
-        
-        // Wait for the RIOduino to indicate new data is available
-        while (!m_DigitalInputFromRioduino.Get())
-        {
-        }
-        
-        // Get and process new I2C data
-        UpdateI2cData();
-        UnpackI2cData();
-        
-        // Tell the RIOduino the new data was processed
-        m_DigitalOutputToRioduino.Set(false);
-        
-        // Wait for the ack back from the RIOduino
-        while (m_DigitalInputFromRioduino.Get())
-        {
-        }
-        
-        // Sleep for a bit to not flood the RIOduino with transactions
-        std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadUpdateRateMs));
-    }
 }
 
 
