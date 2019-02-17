@@ -206,35 +206,6 @@ void YtaRioduino::Run()
   m_bCollectSensorData = false;
   m_bI2cDataRead = false;
   digitalWrite(RIODUINO_SIGNAL_PIN, LOW);
-  
-// This is the handshake approach
-/*  
-  // Wait for the roboRIO to signal a read
-  while (digitalRead(ROBORIO_SIGNAL_PIN) == LOW)
-  {
-    // Update heartbeat
-    HeartBeat();
-  }
-  
-  // Get new information from the sensor
-  GetGyroData(false);
-  
-  // Build an I2C response packet
-  BuildI2cData();
-  
-  // Indicate back to the roboRIO that new information is ready
-  digitalWrite(RIODUINO_SIGNAL_PIN, HIGH);
-  
-  // Wait for the roboRIO to indicate it processed the new information
-  while (digitalRead(ROBORIO_SIGNAL_PIN) == HIGH)
-  {
-    // Update heartbeat
-    HeartBeat();
-  }
-  
-  // Clear the signal pin back to the roboRIO
-  digitalWrite(RIODUINO_SIGNAL_PIN, LOW);
-*/
 }
 
 
