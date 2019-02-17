@@ -355,6 +355,8 @@ private:
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
     static const char               NULL_CHARACTER                          = '\0';
     
+    static const bool               ADXRS450_GYRO_PRESENT                   = false;
+    
     static const unsigned           I2C_RUN_INTERVAL_MS                     = 500U;
     
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
@@ -465,8 +467,11 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
     {
         case ADXRS450:
         {
-            value = m_pAdxrs450Gyro->GetAngle();
-            break;
+            if (m_pAdxrs450Gyro != nullptr)
+            {
+                value = m_pAdxrs450Gyro->GetAngle();
+                break;
+            }
         }
         case ANALOG:
         {
