@@ -46,37 +46,31 @@ private:
     }
   }
   
-  // Support function to show the RIOduino is still executing
-  inline static void HeartBeat()
-  {
-    static int heartBeat = 1;
-    if (DEBUG_PRINTS)
-    {
-      Serial.print("HeartBeat: ");
-      Serial.println(heartBeat++);
-    }
-  }
-  
   // Member functions
+  static void InterruptHandler();
   static void I2cOnReceive(int bytesReceived);
   static void I2cOnRequest();
   static void BuildI2cData();
-  static void GyroSequence(bool bReadNewCenter);
+  static void GetGyroData(bool bReadNewCenter);
+  static void HeartBeat();
   
   // Member variables
-  static Adafruit_BNO055 m_Bno;
-  static I2cData m_I2cData;
-  
-  static double m_RobotAngle;
-  static double m_RobotAbsoluteAngle;
-  static double m_RobotRelativeAngle;
-  static double m_RobotCenterPoint;
+  static Adafruit_BNO055    m_Bno055;
+  static I2cData            m_I2cData;
+  static volatile bool      m_bCollectSensorData;
+  static volatile bool      m_bI2cDataRead;
+  static double             m_RobotAngle;
+  static double             m_RobotAbsoluteAngle;
+  static double             m_RobotRelativeAngle;
+  static double             m_RobotCenterPoint;
   
   // Constants
-  static const int          DEBUG_RED_LED_PIN           = 6;
+  static const int          ROBORIO_SIGNAL_PIN          = 2;
+  static const int          RIODUINO_SIGNAL_PIN         = 3;
+  static const int          HEALTH_LED_PIN              = 5;
+  static const int          DEBUG_BLUE_LED_PIN          = 6;
   static const int          DEBUG_GREEN_LED_PIN         = 7;
   static const int          BNO055_SENSOR_ID            = 55;
-  static const int          BNO055_SAMPLE_RATE_MS       = 75;
   static const int          HEART_BEAT_RATE_MS          = 1000;
   static const unsigned int I2C_HEADER_DATA             = 0x0120;
   static const unsigned int I2C_FOOTER_DATA             = 0x0210;
@@ -95,12 +89,14 @@ private:
 };
 
 // STATIC MEMBER DATA
-Adafruit_BNO055 YtaRioduino::m_Bno = Adafruit_BNO055(BNO055_SENSOR_ID);
-double YtaRioduino::m_RobotAngle = 0.0;
-double YtaRioduino::m_RobotAbsoluteAngle = 0.0;
-double YtaRioduino::m_RobotRelativeAngle = 0.0;
-double YtaRioduino::m_RobotCenterPoint = 0.0;
-YtaRioduino::I2cData YtaRioduino::m_I2cData;
+Adafruit_BNO055       YtaRioduino::m_Bno055             = Adafruit_BNO055(BNO055_SENSOR_ID);
+YtaRioduino::I2cData  YtaRioduino::m_I2cData;
+volatile bool         YtaRioduino::m_bCollectSensorData = false;
+volatile bool         YtaRioduino::m_bI2cDataRead       = false;
+double                YtaRioduino::m_RobotAngle         = 0.0;
+double                YtaRioduino::m_RobotAbsoluteAngle = 0.0;
+double                YtaRioduino::m_RobotRelativeAngle = 0.0;
+double                YtaRioduino::m_RobotCenterPoint   = 0.0;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,8 +134,16 @@ void YtaRioduino::Initialize()
   DisplayMessage("FRC 120 RIOduino.");
   
   // Configure debug pins
-  pinMode(DEBUG_RED_LED_PIN, OUTPUT);
+  pinMode(HEALTH_LED_PIN, OUTPUT);
+  pinMode(DEBUG_BLUE_LED_PIN, OUTPUT);
   pinMode(DEBUG_GREEN_LED_PIN, OUTPUT);
+  
+  // Configure communication pins
+  pinMode(ROBORIO_SIGNAL_PIN, INPUT);
+  pinMode(RIODUINO_SIGNAL_PIN, OUTPUT);
+  
+  // Connect the interrupt handler
+  attachInterrupt(digitalPinToInterrupt(ROBORIO_SIGNAL_PIN), InterruptHandler, RISING);
   
   // Open the I2C port
   Wire.begin(RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
@@ -152,7 +156,7 @@ void YtaRioduino::Initialize()
   m_I2cData.m_Footer = I2C_FOOTER_DATA;
   
   // Initialize the 9-axis sensor
-  while (!m_Bno.begin())
+  while (!m_Bno055.begin())
   {
     // There was a problem detecting the BNO055 ... check your connections
     DisplayMessage("No BNO055 detected... check wiring or I2C ADDR!");
@@ -162,7 +166,7 @@ void YtaRioduino::Initialize()
     delay(ONE_SECOND_DELAY_MS);
   }
   
-  m_Bno.setExtCrystalUse(true);
+  m_Bno055.setExtCrystalUse(true);
 }
 
 
@@ -173,18 +177,102 @@ void YtaRioduino::Initialize()
 ////////////////////////////////////////////////////////////////////////////////
 void YtaRioduino::Run()
 {
+  // This approach is an interurpt based communication mechanism.
+  // The roboRIO will interrupt the RIOduino when it wants new data.
+  
+  // Wait for the interrupt to come through
+  while (!m_bCollectSensorData)
+  {
+    // Do nothing until the interrupt comes in
+    HeartBeat();
+  }
+  
   // Get new information from the sensor
-  GyroSequence(false);
+  GetGyroData(false);
   
   // Build an I2C response packet
   BuildI2cData();
   
-  // Update heartbeat
-  static unsigned int lastHeartBeatTimeMs = 0U;
-  unsigned int currentTimeMs = millis();
-  if ((currentTimeMs - lastHeartBeatTimeMs) > HEART_BEAT_RATE_MS)
+  // Send a response back to the roboRIO to indicate data is ready
+  digitalWrite(RIODUINO_SIGNAL_PIN, HIGH);
+  
+  // Wait for the roboRIO to read the I2C data
+  while (!m_bI2cDataRead)
   {
     HeartBeat();
+  }
+  
+  // The roboRIO has now read the new I2C data, reset control variables
+  m_bCollectSensorData = false;
+  m_bI2cDataRead = false;
+  digitalWrite(RIODUINO_SIGNAL_PIN, LOW);
+  
+// This is the handshake approach
+/*  
+  // Wait for the roboRIO to signal a read
+  while (digitalRead(ROBORIO_SIGNAL_PIN) == LOW)
+  {
+    // Update heartbeat
+    HeartBeat();
+  }
+  
+  // Get new information from the sensor
+  GetGyroData(false);
+  
+  // Build an I2C response packet
+  BuildI2cData();
+  
+  // Indicate back to the roboRIO that new information is ready
+  digitalWrite(RIODUINO_SIGNAL_PIN, HIGH);
+  
+  // Wait for the roboRIO to indicate it processed the new information
+  while (digitalRead(ROBORIO_SIGNAL_PIN) == HIGH)
+  {
+    // Update heartbeat
+    HeartBeat();
+  }
+  
+  // Clear the signal pin back to the roboRIO
+  digitalWrite(RIODUINO_SIGNAL_PIN, LOW);
+*/
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Method: InterruptHandler
+///
+/// Details:  Interrupt handler for when the roboRIO sends a trigger signal.
+////////////////////////////////////////////////////////////////////////////////
+void YtaRioduino::InterruptHandler()
+{
+  m_bCollectSensorData = true;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Method: HeartBeat
+///
+/// Details:  Support function to show the RIOduino is still executing.
+////////////////////////////////////////////////////////////////////////////////
+void YtaRioduino::HeartBeat()
+{
+  static int heartBeat = 1;
+  static bool bHealthLedState = false;
+  static unsigned int lastHeartBeatTimeMs = 0U;
+  unsigned int currentTimeMs = millis();
+  
+  if ((currentTimeMs - lastHeartBeatTimeMs) > HEART_BEAT_RATE_MS)
+  {
+    if (DEBUG_PRINTS)
+    {
+      Serial.print("HeartBeat: ");
+      Serial.println(heartBeat++);
+    }
+    
+    // No matter what, toggle the health LED
+    digitalWrite(HEALTH_LED_PIN, static_cast<int>(bHealthLedState));
+    bHealthLedState = !bHealthLedState;
+    
     lastHeartBeatTimeMs = currentTimeMs;
   }
 }
@@ -220,6 +308,7 @@ void YtaRioduino::I2cOnReceive(int bytesReceived)
 void YtaRioduino::I2cOnRequest()
 {
   Wire.write(reinterpret_cast<byte *>(&m_I2cData), sizeof(m_I2cData));
+  m_bI2cDataRead = true;
 
   if (DEBUG_I2C_TRANSACTIONS)
   {
@@ -252,20 +341,14 @@ void YtaRioduino::BuildI2cData()
   
   // Check if it's negative
   if (robotAngle < 0.0)
-  {
-    digitalWrite(DEBUG_RED_LED_PIN, HIGH);
-    digitalWrite(DEBUG_GREEN_LED_PIN, LOW);
-    
+  {    
     m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_bIsNegative = true;
     
     // For simplicity with the different architectures, always send a positive angle
     robotAngle *= -1.0;
   }
   else
-  {
-    digitalWrite(DEBUG_RED_LED_PIN, LOW);
-    digitalWrite(DEBUG_GREEN_LED_PIN, HIGH);
-    
+  {    
     m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_bIsNegative = false;
   }
   
@@ -275,75 +358,82 @@ void YtaRioduino::BuildI2cData()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Method: GyroSequence
+/// Method: GetGyroData
 ///
 /// Details:  Reads information from the BNO055 9-axis sensor.
 ////////////////////////////////////////////////////////////////////////////////
-void YtaRioduino::GyroSequence(bool bReadNewCenter)
+void YtaRioduino::GetGyroData(bool bReadNewCenter)
 {
-  static unsigned int lastGyroTimeMs = 0U;
-  unsigned int currentTimeMs = millis();
+  // This will only be called on demand, no need for time controls
   
-  if ((currentTimeMs - lastGyroTimeMs) > BNO055_SAMPLE_RATE_MS)
+  // For normalization to arbitrary angle as center:
+  //
+  // Defaults to zero
+  // double m_CenterSetPointDegrees = 0.0;
+  // m_RobotAbsoluteAngle = bnoSensorEvent.orientation.x;
+  // m_RobotRelativeAngle = m_RobotAbsoluteAngle - m_CenterSetPointDegrees;
+  // if (m_RobotRelativeAngle < 0.0)
+  // {
+  //   // Negative angles must be normalized from 360 (the addition here is actually subtraction)
+  //   m_RobotRelativeAngle += THREE_HUNDRED_SIXTY_DEGREES;
+  // }
+  
+  // Get a new sensor event
+  sensors_event_t bnoSensorEvent;
+  m_Bno055.getEvent(&bnoSensorEvent);
+  
+  // Save off a new center if one was requested
+  if (bReadNewCenter)
   {
-    // For normalization to arbitrary angle as center:
-    //
-    // Defaults to zero
-    // double m_CenterSetPointDegrees = 0.0;
-    // m_RobotAbsoluteAngle = bnoSensorEvent.orientation.x;
-    // m_RobotRelativeAngle = m_RobotAbsoluteAngle - m_CenterSetPointDegrees;
-    // if (m_RobotRelativeAngle < 0.0)
-    // {
-    //   // Negative angles must be normalized from 360 (the addition here is actually subtraction)
-    //   m_RobotRelativeAngle += THREE_HUNDRED_SIXTY_DEGREES;
-    // }
-    
-    // Get a new sensor event
-    sensors_event_t bnoSensorEvent;
-    m_Bno.getEvent(&bnoSensorEvent);
-    
-    // Save off a new center if one was requested
-    if (bReadNewCenter)
-    {
-      DisplayMessage("Reading new center...");
-      m_RobotCenterPoint = bnoSensorEvent.orientation.x;
-    }
-    
-    // The absolute angle is what the sensor reports.
-    // The relative angle needs to be computed from the absolute angle.
-    m_RobotAbsoluteAngle = bnoSensorEvent.orientation.x;
-    m_RobotRelativeAngle = m_RobotAbsoluteAngle - m_RobotCenterPoint;
-    
-    // The relative angle can be anywhere from -360 to + 360 at this point.
-    // We need an angle between 0 -> 360 only.
-    // Negative angles must be normalized from 360 (the addition here is actually subtraction).
-    if (m_RobotRelativeAngle < 0.0)
-    {
-      m_RobotRelativeAngle += THREE_HUNDRED_SIXTY_DEGREES;
-    }
-    
-    // Now that we have an angle from 0 -> 360, convert it to -180 -> 180
-    if (m_RobotRelativeAngle > ONE_HUNDRED_EIGHTY_DEGREES)
-    {
-      // convert left half of unit circle to negative
-      // old: 360 (top) -> 270 (left) -> 180 (bottom)
-      // new: 0 (top) -> -90 (left) -> -180 (bottom)
-      m_RobotRelativeAngle -= THREE_HUNDRED_SIXTY_DEGREES;
-    }
-    
-    // Robot angle is the relative angle
-    m_RobotAngle = m_RobotRelativeAngle;
-    
-    // Update the last time a reading was taken
-    lastGyroTimeMs = currentTimeMs;
-    
-    if (DEBUG_GYRO_READINGS)
-    {
-      Serial.print("Absolute angle: ");
-      Serial.println(m_RobotAbsoluteAngle);
-      Serial.print("Relative angle: ");
-      Serial.println(m_RobotRelativeAngle);
-    }
+    DisplayMessage("Reading new center...");
+    m_RobotCenterPoint = bnoSensorEvent.orientation.x;
+  }
+  
+  // The absolute angle is what the sensor reports.
+  // The relative angle needs to be computed from the absolute angle.
+  m_RobotAbsoluteAngle = bnoSensorEvent.orientation.x;
+  m_RobotRelativeAngle = m_RobotAbsoluteAngle - m_RobotCenterPoint;
+  
+  // The relative angle can be anywhere from -360 to + 360 at this point.
+  // We need an angle between 0 -> 360 only.
+  // Negative angles must be normalized from 360 (the addition here is actually subtraction).
+  if (m_RobotRelativeAngle < 0.0)
+  {
+    m_RobotRelativeAngle += THREE_HUNDRED_SIXTY_DEGREES;
+  }
+  
+  // Now that we have an angle from 0 -> 360, convert it to -180 -> 180
+  if (m_RobotRelativeAngle > ONE_HUNDRED_EIGHTY_DEGREES)
+  {
+    // convert left half of unit circle to negative
+    // old: 360 (top) -> 270 (left) -> 180 (bottom)
+    // new: 0 (top) -> -90 (left) -> -180 (bottom)
+    m_RobotRelativeAngle -= THREE_HUNDRED_SIXTY_DEGREES;
+  }
+  
+  // Robot angle is the relative angle
+  m_RobotAngle = m_RobotRelativeAngle;
+  
+  // Update the LED debug outputs
+  if (m_RobotAngle < 0.0)
+  {
+    digitalWrite(DEBUG_BLUE_LED_PIN, HIGH);
+    digitalWrite(DEBUG_GREEN_LED_PIN, LOW);
+  }
+  else
+  {
+    digitalWrite(DEBUG_BLUE_LED_PIN, LOW);
+    digitalWrite(DEBUG_GREEN_LED_PIN, HIGH);
+  }
+  
+  if (DEBUG_GYRO_READINGS)
+  {
+    Serial.print("Time: ");
+    Serial.print(millis());
+    Serial.print(", Absolute angle: ");
+    Serial.print(m_RobotAbsoluteAngle);
+    Serial.print(", Relative angle: ");
+    Serial.println(m_RobotRelativeAngle);
   }
 }
 
