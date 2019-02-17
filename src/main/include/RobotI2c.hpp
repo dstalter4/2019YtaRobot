@@ -54,6 +54,14 @@ public:
 
 private:
     
+    // Tracks which state the thread is currently in
+    enum ThreadPhase
+    {
+        TRIGGER_INTERRUPT,
+        COLLECT_DATA,
+        DELAY
+    };
+    
     // Autonomous control flow
     static void AutonomousI2cSequence();
     
@@ -77,14 +85,24 @@ private:
     
     // MEMBER VARIABLES
     
-    // I2C configuration
-    static I2cData      m_I2cRioduinoData;
-    static I2C          m_I2cRioduino;
-    static bool         m_bI2cDataValid;
-    static unsigned int m_ThreadUpdateRateMs;
+    // Digital I/O signals for I2C communication
+    static DigitalOutput    m_DigitalOutputToRioduino;
+    static DigitalInput     m_DigitalInputFromRioduino;
     
-    static const bool       DEBUG_I2C_TRANSACTIONS = false;
-    static const unsigned   DEFAULT_UPDATE_RATE_MS = 100U;
+    // I2C configuration
+    static I2cData          m_I2cRioduinoData;
+    static I2C              m_I2cRioduino;
+    static bool             m_bI2cDataValid;
+    
+    // Thread configuration
+    static ThreadPhase      m_ThreadPhase;
+    static unsigned int     m_ThreadUpdateRateMs;
+    
+    static const int        ROBORIO_SIGNAL_DIO_PIN  = 8;
+    static const int        RIODUINO_SIGNAL_DIO_PIN = 9;
+    static const bool       DEBUG_I2C_TRANSACTIONS  = false;
+    static const unsigned   DEFAULT_UPDATE_RATE_MS  = 50U;
+    static const unsigned   INITIALIZING_DELAY_MS   = 10U;
 };
 
 
@@ -118,7 +136,7 @@ inline void RobotI2c::UpdateI2cData()
     //uint8_t I2C_WRITE_STRING[] = "Frc120I2c";
     //static_cast<void>(m_I2cRioduino.WriteBulk(&I2C_WRITE_STRING[0], sizeof(I2C_WRITE_STRING)));
     static_cast<void>(m_I2cRioduino.ReadOnly(sizeof(m_I2cRioduinoData), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
-    //static_cast<void>(m_I2cRioduino.Transaction(I2C_STRING, sizeof(I2C_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
+    //static_cast<void>(m_I2cRioduino.Transaction(I2C_WRITE_STRING, sizeof(I2C_WRITE_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
 }
 
 

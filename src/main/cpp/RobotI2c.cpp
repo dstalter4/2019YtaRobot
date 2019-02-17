@@ -10,7 +10,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // SYSTEM INCLUDES
-#include <iostream>                             // for cout
+// <none>
 
 // C INCLUDES
 // (none)
@@ -21,10 +21,13 @@
 #include "YtaRobot.hpp"                         // for I2cSequence() declaration
 
 // STATIC MEMBER DATA
-I2cData     RobotI2c::m_I2cRioduinoData;
-I2C         RobotI2c::m_I2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
-bool        RobotI2c::m_bI2cDataValid = false;
-unsigned    RobotI2c::m_ThreadUpdateRateMs = DEFAULT_UPDATE_RATE_MS;
+DigitalOutput           RobotI2c::m_DigitalOutputToRioduino(ROBORIO_SIGNAL_DIO_PIN);
+DigitalInput            RobotI2c::m_DigitalInputFromRioduino(RIODUINO_SIGNAL_DIO_PIN);
+I2cData                 RobotI2c::m_I2cRioduinoData;
+I2C                     RobotI2c::m_I2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
+bool                    RobotI2c::m_bI2cDataValid       = false;
+RobotI2c::ThreadPhase   RobotI2c::m_ThreadPhase         = TRIGGER_INTERRUPT;
+unsigned                RobotI2c::m_ThreadUpdateRateMs  = DEFAULT_UPDATE_RATE_MS;
 
 
 ////////////////////////////////////////////////////////////////
@@ -36,13 +39,82 @@ unsigned    RobotI2c::m_ThreadUpdateRateMs = DEFAULT_UPDATE_RATE_MS;
 void RobotI2c::I2cThread()
 {
     RobotUtils::DisplayMessage("I2C thread detached.");
+
+    // The RIOduino will have booted well before this.
+    // Trigger both of its loop control variables to make
+    // sure it doesn't hang during the main loop.
+    m_DigitalOutputToRioduino.Set(true);
+    UpdateI2cData();
+    std::this_thread::sleep_for(std::chrono::milliseconds(INITIALIZING_DELAY_MS));
+    m_DigitalOutputToRioduino.Set(false);
+    
+    while (true)
+    {
+        switch (m_ThreadPhase)
+        {
+            case TRIGGER_INTERRUPT:
+            {
+                // Trigger the interrupt
+                m_DigitalOutputToRioduino.Set(true);
+                m_ThreadPhase = COLLECT_DATA;
+                break;
+            }
+            case COLLECT_DATA:
+            {
+                // Wait for an indication the data is ready
+                if (m_DigitalInputFromRioduino.Get())
+                {
+                    // Get and process new I2C data
+                    UpdateI2cData();
+                    UnpackI2cData();
+                    
+                    // Clear the interrupt trigger
+                    m_DigitalOutputToRioduino.Set(false);
+                    
+                    m_ThreadPhase = DELAY;
+                }
+                break;
+            }
+            case DELAY:
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadPhase));
+                m_ThreadPhase = TRIGGER_INTERRUPT;
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+    }
+    
+    // Paranoia
+    return;
+    
+    // Below is the handshake approach instead of interrupt approach
     
     // Main loop
     while (true)
     {
+        // Tell the RIOduino to get new data
+        m_DigitalOutputToRioduino.Set(true);
+        
+        // Wait for the RIOduino to indicate new data is available
+        while (!m_DigitalInputFromRioduino.Get())
+        {
+        }
+        
         // Get and process new I2C data
         UpdateI2cData();
         UnpackI2cData();
+        
+        // Tell the RIOduino the new data was processed
+        m_DigitalOutputToRioduino.Set(false);
+        
+        // Wait for the ack back from the RIOduino
+        while (m_DigitalInputFromRioduino.Get())
+        {
+        }
         
         // Sleep for a bit to not flood the RIOduino with transactions
         std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadUpdateRateMs));
