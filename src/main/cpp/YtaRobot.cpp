@@ -50,7 +50,7 @@ YtaRobot::YtaRobot() :
     m_pCameraRunTimer                   (new Timer()),
     m_pSafetyTimer                      (new Timer()),
     m_pAccelerometer                    (new BuiltInAccelerometer),
-    m_pAdxrs450Gyro                     (new ADXRS450_Gyro()),
+    m_pAdxrs450Gyro                     (nullptr),
     m_Bno055Angle                       (),
     m_CameraThread                      (RobotCamera::VisionThread),
     m_pToggleFullProcessingTrigger      (new TriggerChangeValues()),
@@ -124,6 +124,12 @@ YtaRobot::YtaRobot() :
             ASSERT(false);
             break;
         }
+    }
+    
+    // Construct the ADXRS450 gyro if configured
+    if (ADXRS450_GYRO_PRESENT)
+    {
+        m_pAdxrs450Gyro = new ADXRS450_Gyro();
     }
 
     // Reset all timers
