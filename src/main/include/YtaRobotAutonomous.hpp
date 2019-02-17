@@ -92,7 +92,7 @@ namespace YtaRobotAutonomous
     static constexpr double SONAR_COMPENSATE_RIGHT_SPEED        =  0.05;
     
     // Autonomous misc constants
-    static const unsigned   I2C_THREAD_UPDATE_RATE_MS           = 100U;
+    static const unsigned   I2C_THREAD_UPDATE_RATE_MS           = 50U;
     
 } // End namespace
 

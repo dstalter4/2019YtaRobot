@@ -40,8 +40,8 @@ namespace RoborioRioduinoSharedData
     // Controls which data structure is active in a transfer
     enum I2cDataSelection : uint8_t
     {
-        SONAR_DATA,
-        GYRO_DATA
+        SONAR_DATA = 1,
+        GYRO_DATA = 2
     };
     
     // Data structure for transferring sonar data
