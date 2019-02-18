@@ -100,6 +100,7 @@ private:
     
     static const int        ROBORIO_SIGNAL_DIO_PIN  = 8;
     static const int        RIODUINO_SIGNAL_DIO_PIN = 9;
+    static const uint8_t    I2C_BUFFER_MARKER       = 0xAA;
     static const bool       DEBUG_I2C_TRANSACTIONS  = false;
     static const unsigned   DEFAULT_UPDATE_RATE_MS  = 50U;
     static const unsigned   INITIALIZING_DELAY_MS   = 10U;
@@ -130,7 +131,7 @@ void RobotI2c::SetThreadUpdateRate(unsigned updateRateMs)
 inline void RobotI2c::UpdateI2cData()
 {
     // Clear the buffer for new data
-    std::memset(&m_I2cRioduinoData, 0U, sizeof(m_I2cRioduinoData));
+    std::memset(&m_I2cRioduinoData, I2C_BUFFER_MARKER, sizeof(m_I2cRioduinoData));
     
     // Get the data from the riodiuino
     //uint8_t I2C_WRITE_STRING[] = "Frc120I2c";

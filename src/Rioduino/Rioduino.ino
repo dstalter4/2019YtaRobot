@@ -72,6 +72,7 @@ private:
   static const int          DEBUG_GREEN_LED_PIN         = 7;
   static const int          BNO055_SENSOR_ID            = 55;
   static const int          HEART_BEAT_RATE_MS          = 1000;
+  static const uint8_t      I2C_BUFFER_MARKER           = 0xBB;
   static const unsigned int I2C_HEADER_DATA             = 0x0120;
   static const unsigned int I2C_FOOTER_DATA             = 0x0210;
   static constexpr double   ONE_HUNDRED_EIGHTY_DEGREES  = 180.0;
@@ -304,6 +305,9 @@ void YtaRioduino::I2cOnRequest()
 ////////////////////////////////////////////////////////////////////////////////
 void YtaRioduino::BuildI2cData()
 {
+  // Clear the buffer with a marker in case there's a need to debug
+  memset(&m_I2cData, I2C_BUFFER_MARKER, sizeof(m_I2cData));
+  
   // Indicate gyro data is being sent over
   m_I2cData.m_DataSelection = RoborioRioduinoSharedData::I2cDataSelection::GYRO_DATA;
   

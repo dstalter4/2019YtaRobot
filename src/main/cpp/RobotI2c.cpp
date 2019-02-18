@@ -77,7 +77,7 @@ void RobotI2c::I2cThread()
             }
             case DELAY:
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadPhase));
+                std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadUpdateRateMs));
                 m_ThreadPhase = TRIGGER_INTERRUPT;
                 break;
             }
