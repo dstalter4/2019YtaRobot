@@ -23,11 +23,15 @@
 // STATIC MEMBER DATA
 DigitalOutput           RobotI2c::m_DigitalOutputToRioduino(ROBORIO_SIGNAL_DIO_PIN);
 DigitalInput            RobotI2c::m_DigitalInputFromRioduino(RIODUINO_SIGNAL_DIO_PIN);
+I2cCommand              RobotI2c::m_I2cRioduinoCommand;
 I2cData                 RobotI2c::m_I2cRioduinoData;
 I2C                     RobotI2c::m_I2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
-bool                    RobotI2c::m_bI2cDataValid       = false;
-RobotI2c::ThreadPhase   RobotI2c::m_ThreadPhase         = TRIGGER_INTERRUPT;
-unsigned                RobotI2c::m_ThreadUpdateRateMs  = DEFAULT_UPDATE_RATE_MS;
+bool                    RobotI2c::m_bI2cDataValid           = false;
+RobotI2c::ThreadPhase   RobotI2c::m_ThreadPhase             = TRIGGER_INTERRUPT;
+unsigned int            RobotI2c::m_ThreadUpdateRateMs      = DEFAULT_UPDATE_RATE_MS;
+unsigned int            RobotI2c::m_NumValidTransactions    = 0U;
+unsigned int            RobotI2c::m_NumInvalidTransactions  = 0U;
+
 
 
 ////////////////////////////////////////////////////////////////
@@ -92,6 +96,28 @@ void RobotI2c::I2cThread()
 
 
 ////////////////////////////////////////////////////////////////
+/// @method RobotI2c::SendCommand
+///
+/// Sends a command to the RIOduino via I2C.
+///
+////////////////////////////////////////////////////////////////
+void RobotI2c::SendCommand(I2cCommandSelection command)
+{
+    // First clear the buffer
+    std::memset(&m_I2cRioduinoCommand, I2C_BUFFER_MARKER, sizeof(m_I2cRioduinoCommand));
+    
+    // Build the metadata
+    m_I2cRioduinoCommand.m_Header = I2C_HEADER_DATA;
+    m_I2cRioduinoCommand.m_Footer = I2C_FOOTER_DATA;
+    m_I2cRioduinoCommand.m_CommandSelection = GYRO_READ_NEW_CENTER;
+    
+    // Send the I2C command
+    SendI2cCommand();
+}
+
+
+
+////////////////////////////////////////////////////////////////
 /// @method RobotI2c::UnpackI2cData
 ///
 /// Upacks received I2C data.
@@ -102,8 +128,8 @@ void RobotI2c::UnpackI2cData()
     m_bI2cDataValid = false;
         
     // Make sure a valid data packet was received
-    if ((m_I2cRioduinoData.m_Header == I2cData::I2C_HEADER_DATA) &&
-        (m_I2cRioduinoData.m_Footer == I2cData::I2C_FOOTER_DATA))
+    if ((m_I2cRioduinoData.m_Header == I2C_HEADER_DATA) &&
+        (m_I2cRioduinoData.m_Footer == I2C_FOOTER_DATA))
     {
         // The unpacking action depends on what kind of data was sent
         switch (m_I2cRioduinoData.m_DataSelection)
@@ -129,21 +155,26 @@ void RobotI2c::UnpackI2cData()
                 break;
             }
         }
-
+        
+        m_NumValidTransactions++;
         m_bI2cDataValid = true;
     }
     else
     {
+        m_NumInvalidTransactions++;
+        
         if (DEBUG_I2C_TRANSACTIONS)
         {
-            RobotUtils::DisplayMessage("Invalid I2C metadata.  Dumping buffer...");
+            RobotUtils::DisplayMessage("Invalid I2C metadata.");
+            RobotUtils::DisplayFormattedMessage("Transactions - Valid: %u, Invalid: %u\n", m_NumValidTransactions, m_NumInvalidTransactions);
+            RobotUtils::DisplayMessage("Dumping buffer...");
             
             uint8_t * pData = reinterpret_cast<uint8_t *>(&m_I2cRioduinoData);
             for (int i = 0; i < sizeof(m_I2cRioduinoData); i++)
             {
-                printf("%x ", *pData++);
+                RobotUtils::DisplayFormattedMessage("%x ", *pData++);
             }
-            printf("\n");
+            RobotUtils::DisplayMessage("\n");
         }
     }
 }

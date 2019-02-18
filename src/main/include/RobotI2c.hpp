@@ -43,6 +43,9 @@ public:
     // The vision thread
     static void I2cThread();
     
+    // Send a command via I2C
+    static void SendCommand(I2cCommandSelection command);
+    
     // Set the rate for how fast the thread should run
     inline static void SetThreadUpdateRate(unsigned updateRateMs);
     
@@ -62,11 +65,11 @@ private:
         DELAY
     };
     
-    // Autonomous control flow
-    static void AutonomousI2cSequence();
+    // Build an I2C command
+    static void BuildI2cCommand();
     
-    // Teleop control flow
-    static void TeleopI2cSequence();
+    // Send an I2C command
+    inline static void SendI2cCommand();
     
     // Unpack the received I2C data
     static void UnpackI2cData();
@@ -89,7 +92,8 @@ private:
     static DigitalOutput    m_DigitalOutputToRioduino;
     static DigitalInput     m_DigitalInputFromRioduino;
     
-    // I2C configuration
+    // I2C transactions
+    static I2cCommand       m_I2cRioduinoCommand;
     static I2cData          m_I2cRioduinoData;
     static I2C              m_I2cRioduino;
     static bool             m_bI2cDataValid;
@@ -97,6 +101,10 @@ private:
     // Thread configuration
     static ThreadPhase      m_ThreadPhase;
     static unsigned int     m_ThreadUpdateRateMs;
+    
+    // Counters
+    static unsigned int     m_NumValidTransactions;
+    static unsigned int     m_NumInvalidTransactions;
     
     static const int        ROBORIO_SIGNAL_DIO_PIN  = 8;
     static const int        RIODUINO_SIGNAL_DIO_PIN = 9;
@@ -115,9 +123,23 @@ private:
 /// RIOduino.
 ///
 ////////////////////////////////////////////////////////////////
-void RobotI2c::SetThreadUpdateRate(unsigned updateRateMs)
+inline void RobotI2c::SetThreadUpdateRate(unsigned updateRateMs)
 {
     m_ThreadUpdateRateMs = updateRateMs;
+}
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method RobotI2c::SendI2cCommand
+///
+/// Sends a I2C command to the RIOduino.
+///
+////////////////////////////////////////////////////////////////
+inline void RobotI2c::SendI2cCommand()
+{
+    // Send the command
+    static_cast<void>(m_I2cRioduino.WriteBulk(reinterpret_cast<uint8_t *>(&m_I2cRioduinoCommand), sizeof(I2cCommand)));
 }
 
 
@@ -134,10 +156,7 @@ inline void RobotI2c::UpdateI2cData()
     std::memset(&m_I2cRioduinoData, I2C_BUFFER_MARKER, sizeof(m_I2cRioduinoData));
     
     // Get the data from the riodiuino
-    //uint8_t I2C_WRITE_STRING[] = "Frc120I2c";
-    //static_cast<void>(m_I2cRioduino.WriteBulk(&I2C_WRITE_STRING[0], sizeof(I2C_WRITE_STRING)));
     static_cast<void>(m_I2cRioduino.ReadOnly(sizeof(m_I2cRioduinoData), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
-    //static_cast<void>(m_I2cRioduino.Transaction(I2C_WRITE_STRING, sizeof(I2C_WRITE_STRING), reinterpret_cast<uint8_t *>(&m_I2cRioduinoData), sizeof(m_I2cRioduinoData)));
 }
 
 
@@ -159,7 +178,8 @@ inline SonarI2cData * RobotI2c::GetSonarData()
     }
     else
     {
-        RobotUtils::DisplayMessage("Received data was not selected as sonar, could be invalid!");
+        // Since this is an interface method, getting here means the I2C thread is in the middle
+        // of an update, so there's no valid data to return (between memset and transaction calls).
     }
     
     return pSonarData;
@@ -184,7 +204,8 @@ inline GyroI2cData * RobotI2c::GetGyroData()
     }
     else
     {
-        RobotUtils::DisplayMessage("Received data was not selected as gyro, could be invalid!");
+        // Since this is an interface method, getting here means the I2C thread is in the middle
+        // of an update, so there's no valid data to return (between memset and transaction calls).
     }
     
     return pGyroData;
