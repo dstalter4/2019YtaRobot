@@ -33,7 +33,8 @@ public:
   
 private:
   
-  // Makes for easier use/readability of interacting with I2cData
+  // Makes for easier use/readability of interacting with I2C commands and data
+  typedef RoborioRioduinoSharedData::I2cCommand I2cCommand;
   typedef RoborioRioduinoSharedData::I2cData I2cData;
 
   // Support function for displaying a message if prints are enabled
@@ -50,13 +51,17 @@ private:
   static void InterruptHandler();
   static void I2cOnReceive(int bytesReceived);
   static void I2cOnRequest();
+  static void CheckForAndProcessI2cCommand();
   static void BuildI2cData();
-  static void GetGyroData(bool bReadNewCenter);
+  static void GetGyroData();
   static void HeartBeat();
   
   // Member variables
   static Adafruit_BNO055    m_Bno055;
+  static I2cCommand         m_I2cCommand;
   static I2cData            m_I2cData;
+  static volatile bool      m_bNewI2cCommandAvailable;
+  static volatile bool      m_bReadNewGyroCenter;
   static volatile bool      m_bCollectSensorData;
   static volatile bool      m_bI2cDataRead;
   static double             m_RobotAngle;
@@ -73,8 +78,6 @@ private:
   static const int          BNO055_SENSOR_ID            = 55;
   static const int          HEART_BEAT_RATE_MS          = 1000;
   static const uint8_t      I2C_BUFFER_MARKER           = 0xBB;
-  static const unsigned int I2C_HEADER_DATA             = 0x0120;
-  static const unsigned int I2C_FOOTER_DATA             = 0x0210;
   static constexpr double   ONE_HUNDRED_EIGHTY_DEGREES  = 180.0;
   static constexpr double   THREE_HUNDRED_SIXTY_DEGREES = 360.0;
 
@@ -90,14 +93,17 @@ private:
 };
 
 // STATIC MEMBER DATA
-Adafruit_BNO055       YtaRioduino::m_Bno055             = Adafruit_BNO055(BNO055_SENSOR_ID);
-YtaRioduino::I2cData  YtaRioduino::m_I2cData;
-volatile bool         YtaRioduino::m_bCollectSensorData = false;
-volatile bool         YtaRioduino::m_bI2cDataRead       = false;
-double                YtaRioduino::m_RobotAngle         = 0.0;
-double                YtaRioduino::m_RobotAbsoluteAngle = 0.0;
-double                YtaRioduino::m_RobotRelativeAngle = 0.0;
-double                YtaRioduino::m_RobotCenterPoint   = 0.0;
+Adafruit_BNO055         YtaRioduino::m_Bno055                   = Adafruit_BNO055(BNO055_SENSOR_ID);
+YtaRioduino::I2cCommand YtaRioduino::m_I2cCommand;
+YtaRioduino::I2cData    YtaRioduino::m_I2cData;
+volatile bool           YtaRioduino::m_bNewI2cCommandAvailable  = false;
+volatile bool           YtaRioduino::m_bReadNewGyroCenter       = false;
+volatile bool           YtaRioduino::m_bCollectSensorData       = false;
+volatile bool           YtaRioduino::m_bI2cDataRead             = false;
+double                  YtaRioduino::m_RobotAngle               = 0.0;
+double                  YtaRioduino::m_RobotAbsoluteAngle       = 0.0;
+double                  YtaRioduino::m_RobotRelativeAngle       = 0.0;
+double                  YtaRioduino::m_RobotCenterPoint         = 0.0;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,8 +159,6 @@ void YtaRioduino::Initialize()
   
   // Clear I2C data and set constant fields
   memset(&m_I2cData, 0U, sizeof(m_I2cData));
-  m_I2cData.m_Header = I2C_HEADER_DATA;
-  m_I2cData.m_Footer = I2C_FOOTER_DATA;
   
   // Initialize the 9-axis sensor
   while (!m_Bno055.begin())
@@ -180,16 +184,18 @@ void YtaRioduino::Run()
 {
   // This approach is an interurpt based communication mechanism.
   // The roboRIO will interrupt the RIOduino when it wants new data.
+  // The loops waiting on a state change will poll for a new I2C
+  // command to come through and be processed.
   
   // Wait for the interrupt to come through
   while (!m_bCollectSensorData)
   {
-    // Do nothing until the interrupt comes in
+    CheckForAndProcessI2cCommand();
     HeartBeat();
   }
   
   // Get new information from the sensor
-  GetGyroData(false);
+  GetGyroData();
   
   // Build an I2C response packet
   BuildI2cData();
@@ -200,6 +206,7 @@ void YtaRioduino::Run()
   // Wait for the roboRIO to read the I2C data
   while (!m_bI2cDataRead)
   {
+    CheckForAndProcessI2cCommand();
     HeartBeat();
   }
   
@@ -257,14 +264,28 @@ void YtaRioduino::HeartBeat()
 ////////////////////////////////////////////////////////////////////////////////
 void YtaRioduino::I2cOnReceive(int bytesReceived)
 {
+  // Clear the buffer with a marker in case there's a need to debug
+  memset(&m_I2cCommand, I2C_BUFFER_MARKER, sizeof(m_I2cCommand));
+  
+  // Get a pointer to the destination location
+  uint8_t * pDest = reinterpret_cast<uint8_t *>(&m_I2cCommand);
+  
+  // Read the bytes into the buffer
+  for (int i = 0; i < bytesReceived; i++)
+  {
+    *pDest++ = Wire.read();
+  }
+  
+  m_bNewI2cCommandAvailable = true;
+  
   if (DEBUG_I2C_TRANSACTIONS)
   {
     Serial.print("On receive: ");
     
+    pDest = reinterpret_cast<uint8_t *>(&m_I2cCommand);
     for (int i = 0; i < bytesReceived; i++)
     {
-      const char c = Wire.read();
-      Serial.print(c);
+      Serial.print(*pDest++, HEX);
     }
     
     Serial.println();
@@ -280,6 +301,7 @@ void YtaRioduino::I2cOnReceive(int bytesReceived)
 void YtaRioduino::I2cOnRequest()
 {
   Wire.write(reinterpret_cast<byte *>(&m_I2cData), sizeof(m_I2cData));
+  
   m_bI2cDataRead = true;
 
   if (DEBUG_I2C_TRANSACTIONS)
@@ -297,16 +319,69 @@ void YtaRioduino::I2cOnRequest()
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Method: CheckForAndProcessI2cCommand
+///
+/// Details:  Looks for a new I2C command to have arrived and processes it.
+////////////////////////////////////////////////////////////////////////////////
+void YtaRioduino::CheckForAndProcessI2cCommand()
+{
+  // Validate the command that was received
+  if (m_bNewI2cCommandAvailable)
+  {
+    // Check the header and footer
+    if (m_I2cCommand.m_Header == RoborioRioduinoSharedData::I2C_HEADER_DATA &&
+        m_I2cCommand.m_Footer == RoborioRioduinoSharedData::I2C_FOOTER_DATA)
+    {
+      // Process the command
+      switch (m_I2cCommand.m_CommandSelection)
+      {
+        case RoborioRioduinoSharedData::GYRO_READ_NEW_CENTER:
+        {
+          m_bReadNewGyroCenter = true;
+          break;
+        }
+        default:
+        {
+          // Do nothing in case it was a bad packet
+          break;
+        }
+      }
+    }
+    else
+    {
+      if (DEBUG_PRINTS)
+      {
+        Serial.println("Invalid I2C metadata.  Dumping buffer...");
+        
+        uint8_t * pBuffer = reinterpret_cast<uint8_t *>(&m_I2cCommand);
+        for (size_t i = 0; i < sizeof(m_I2cCommand); i++)
+        {
+          Serial.print(*pBuffer++, HEX);
+          Serial.print(" ");
+        }
+        Serial.println();
+        }
+    }
+    
+    // Command was processed, indicate as such
+    m_bNewI2cCommandAvailable = false;
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 /// Method: BuildI2cData
 ///
-/// Details:  Builds the data to send over to the roboRIO.  Note the I2C request
-///           could come in the middle of this, so it is up to the roboRIO side
-///           to validate the data set.
+/// Details:  Builds the data to send over to the roboRIO.
 ////////////////////////////////////////////////////////////////////////////////
 void YtaRioduino::BuildI2cData()
 {
   // Clear the buffer with a marker in case there's a need to debug
   memset(&m_I2cData, I2C_BUFFER_MARKER, sizeof(m_I2cData));
+  
+  // Set the header/footer info
+  m_I2cData.m_Header = RoborioRioduinoSharedData::I2C_HEADER_DATA;
+  m_I2cData.m_Footer = RoborioRioduinoSharedData::I2C_FOOTER_DATA;
   
   // Indicate gyro data is being sent over
   m_I2cData.m_DataSelection = RoborioRioduinoSharedData::I2cDataSelection::GYRO_DATA;
@@ -337,7 +412,7 @@ void YtaRioduino::BuildI2cData()
 ///
 /// Details:  Reads information from the BNO055 9-axis sensor.
 ////////////////////////////////////////////////////////////////////////////////
-void YtaRioduino::GetGyroData(bool bReadNewCenter)
+void YtaRioduino::GetGyroData()
 {
   // This will only be called on demand, no need for time controls
   
@@ -358,10 +433,11 @@ void YtaRioduino::GetGyroData(bool bReadNewCenter)
   m_Bno055.getEvent(&bnoSensorEvent);
   
   // Save off a new center if one was requested
-  if (bReadNewCenter)
+  if (m_bReadNewGyroCenter)
   {
     DisplayMessage("Reading new center...");
     m_RobotCenterPoint = bnoSensorEvent.orientation.x;
+    m_bReadNewGyroCenter = false;
   }
   
   // The absolute angle is what the sensor reports.
