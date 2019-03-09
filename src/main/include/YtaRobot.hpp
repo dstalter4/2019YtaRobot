@@ -169,7 +169,7 @@ private:
     inline double GetThrottleControl(YtaController * pController);
 
     // Grabs a value from a sonar sensor individually
-    inline double GetSonarSensorValue(Ultrasonic * pSensor);
+    inline double GetSonarValue(Ultrasonic * pSensor);
    
     // Get a reading from the gyro sensor
     inline double GetGyroValue(GyroType gyroType, AnalogGyro * pSensor = nullptr);
@@ -529,7 +529,7 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
 
 
 ////////////////////////////////////////////////////////////////
-/// @method YtaRobot::GetSonarSensorValue
+/// @method YtaRobot::GetSonarValue
 ///
 /// This method is used to get a value from the sonar sensor.
 /// It is intended to be used to turn a sensor briefly on and
@@ -537,7 +537,7 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
 /// sensors that may need to get readings.
 ///
 ////////////////////////////////////////////////////////////////
-inline double YtaRobot::GetSonarSensorValue(Ultrasonic * pSensor)
+inline double YtaRobot::GetSonarValue(Ultrasonic * pSensor)
 {
     return 0.0;
     
