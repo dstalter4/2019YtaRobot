@@ -374,10 +374,6 @@ private:
     static constexpr double         CAMERA_RUN_INTERVAL_S                   =  1.00;
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
     
-    static const int                SONAR_LED_WARN_DIST_INCHES              = 3;
-    static const uint32_t           SONAR_DRIVE_STATE_SIDE_MASK             = 0x0F;
-    static const uint32_t           SONAR_DRIVE_STATE_LATERAL_MASK          = 0xF0;
-    
 };  // End class
 
 

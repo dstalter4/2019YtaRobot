@@ -79,6 +79,8 @@ namespace YtaRobotAutonomous
     static constexpr double ENCODER_COMPENSATE_SPEED            =  0.02;
     
     // Autonomous sonar drive constants
+    static const uint32_t   SONAR_DRIVE_STATE_SIDE_MASK         = 0x0F;
+    static const uint32_t   SONAR_DRIVE_STATE_LATERAL_MASK      = 0xF0;
     static const int        SONAR_LATERAL_DRIVE_DIST_INCHES     =  7*12;
     static const int        SONAR_SIDE_DRIVE_DIST_INCHES        =     6;
     static const int        SONAR_MIN_DRIVE_ENABLE_INCHES       = 10*12;
