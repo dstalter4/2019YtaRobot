@@ -188,6 +188,7 @@ private:
     inline void AutonomousBackDriveTurn(GyroDirection currentGyroDirection);
     
     // Autonomous routines
+    // @todo: Make YtaRobotAutonomous a friend and move these out (requires accessor to *this)!
     void AutonomousRoutine1();
     void AutonomousRoutine2();
     void AutonomousRoutine3();
