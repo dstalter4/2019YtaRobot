@@ -24,6 +24,9 @@
 #include "RobotI2c.hpp"                 // for I2cThread()
 #include "RobotUtils.hpp"               // for DisplayMessage()
 
+// STATIC MEMBER VARIABLES
+YtaRobot * YtaRobot::m_pThis;
+
 
 ////////////////////////////////////////////////////////////////
 /// @method YtaRobot::YtaRobot
@@ -158,6 +161,7 @@ YtaRobot::YtaRobot() :
 void YtaRobot::RobotInit()
 {
     RobotUtils::DisplayMessage("RobotInit called.");
+    SetStaticThisInstance();
 }
 
 

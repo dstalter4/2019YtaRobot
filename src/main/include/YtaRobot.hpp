@@ -141,6 +141,17 @@ private:
         bool m_bOldValue;
     };
     
+    // This is a hacky way of retrieving a pointer to the robot object
+    // outside of the robot class.  The robot object itself is statically
+    // allocated when StartRobot() is called in the RobotBase class.
+    // This makes retrieving the address difficult.  To work around this,
+    // we'll allocate some static storage for a robot object.  When
+    // RobotInit() is called, m_pThis will be filled out.  This only works
+    // because only one YtaRobot object is ever constructed.
+    static YtaRobot * m_pThis;
+    inline void SetStaticThisInstance() { m_pThis = this; }
+    inline static YtaRobot * GetRobotInstance() { return m_pThis; }
+    
     // Checks for a robot state change and logs a message if so
     inline void CheckAndUpdateRobotMode(RobotMode robotMode);
     
