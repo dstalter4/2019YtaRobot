@@ -41,12 +41,14 @@ namespace YtaRobotAutonomous
     // STRUCTS
     // (none)
     
-    // MEMBER VARIABLES
+    // VARIABLES
+    static bool bAutonomousExecutionComplete;
     
     // CONSTS
     
     // Autonomous Mode Constants
-    // TODO 2019: Use frc::SendableChooser<std::string>
+    // @todo: Convert to class and make a friend in YtaRobot
+    
     // Note: Only enable one autonomous routine!
     // Note: Autonomous routines are currently NOT controlled
     // by physical switches on the robot.
