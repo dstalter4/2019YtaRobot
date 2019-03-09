@@ -36,6 +36,8 @@ using namespace frc;
 ////////////////////////////////////////////////////////////////
 class YtaController : public GenericHID
 {
+    friend class YtaRobot;
+    
 public:
     
     explicit YtaController(int port);
@@ -64,13 +66,14 @@ private:
     
     enum RawButtons
     {
+        NO_BUTTON           = 0,
         A                   = 1,
         B                   = 2,
         X                   = 3,
         Y                   = 4,
         LT                  = 5,
         RT                  = 6,
-        BACK                = 7,
+        SELECT              = 7,
         START               = 8,
         LEFT_STICK_CLICK    = 9,
         RIGHT_STICK_CLICK   = 10
