@@ -48,6 +48,12 @@ YtaRobot::YtaRobot() :
     m_pLeftDriveMotors                  (new TalonMotorGroup(NUMBER_OF_LEFT_DRIVE_MOTORS, LEFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
     m_pRightDriveMotors                 (new TalonMotorGroup(NUMBER_OF_RIGHT_DRIVE_MOTORS, RIGHT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
     m_pLedRelay                         (new Relay(LED_RELAY_ID)),
+    m_pLiftMotors                       (new TalonMotorGroup(NUMBER_OF_LIFT_MOTORS, LIFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW)),
+    m_pArmRotationMotors                (new TalonMotorGroup(NUMBER_OF_ARM_ROTATION_MOTORS, ARM_ROTATION_MOTORS_CAN_START_ID, MotorGroupControlMode::INVERSE)),
+    m_pIntakeMotor                      (new TalonSRX(INTAKE_MOTOR_CAN_ID)),
+    m_pJackStandMotor                   (new TalonSRX(JACK_STAND_MOTOR_CAN_ID)),
+    m_pHatchSolenoid                    (new DoubleSolenoid(HATCH_SOLENOID_FORWARD_CHANNEL, HATCH_SOLENOID_REVERSE_CHANNEL)),
+    m_pJackStandSolenoid                (new DoubleSolenoid(JACK_STAND_SOLENOID_FORWARD_CHANNEL, JACK_STAND_SOLENOID_REVERSE_CHANNEL)),
     m_pAutonomousTimer                  (new Timer()),
     m_pInchingDriveTimer                (new Timer()),
     m_pCameraRunTimer                   (new Timer()),
@@ -135,12 +141,6 @@ YtaRobot::YtaRobot() :
         m_pAdxrs450Gyro = new ADXRS450_Gyro();
     }
 
-    // Reset all timers
-    m_pAutonomousTimer->Reset();
-    m_pInchingDriveTimer->Reset();
-    m_pCameraRunTimer->Reset();
-    m_pSafetyTimer->Reset();
-
     // Reset the serial port and clear buffer
     m_pSerialPort->Reset();
     std::memset(&m_SerialPortBuffer, 0U, sizeof(m_SerialPortBuffer));
@@ -198,14 +198,26 @@ void YtaRobot::InitialStateSetup()
     // Start with motors off
     m_pLeftDriveMotors->Set(OFF);
     m_pRightDriveMotors->Set(OFF);
+    m_pLiftMotors->Set(OFF);
+    m_pArmRotationMotors->Set(OFF);
+    m_pIntakeMotor->Set(ControlMode::PercentOutput, OFF);
+    m_pJackStandMotor->Set(ControlMode::PercentOutput, OFF);
     
     // Configure brake or coast for the drive motors
     m_pLeftDriveMotors->SetBrakeMode();
     m_pRightDriveMotors->SetBrakeMode();
     
+    // Configure lift and arm motors as brake
+    m_pLiftMotors->SetBrakeMode();
+    m_pArmRotationMotors->SetBrakeMode();
+    
     // Tare encoders
     m_pLeftDriveMotors->TareEncoder();
     m_pRightDriveMotors->TareEncoder();
+    
+    // Solenoids
+    m_pHatchSolenoid->Set(DoubleSolenoid::kOff);
+    m_pJackStandSolenoid->Set(DoubleSolenoid::kOff);
     
     // Stop/clear any timers, just in case
     m_pInchingDriveTimer->Stop();
@@ -261,7 +273,9 @@ void YtaRobot::TeleopPeriodic()
 
     //CheckForDriveSwap();
     DriveControlSequence();
-    
+
+    LiftAndArmSequence();
+
     //LedSequence();
 
     //SolenoidSequence();
@@ -271,6 +285,43 @@ void YtaRobot::TeleopPeriodic()
     //I2cSequence();
     
     //CameraSequence();
+}
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method YtaRobot::LiftAndArmSequence
+///
+/// This method contains the main workflow for controlling
+/// the lift and arm on the robot.
+///
+////////////////////////////////////////////////////////////////
+void YtaRobot::LiftAndArmSequence()
+{
+    // Lift up/down motors
+    // Joystick input maps to -1 up, +1 down
+    double liftMotorValue = Trim(-m_pControlJoystick->GetRawAxis(MOVE_LIFT_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT);
+    m_pLiftMotors->Set(-liftMotorValue);
+    
+    // Arm rotation motors
+    // Joystick input maps to -1 up, +1 down
+    double armMotorValue = Trim(-m_pControlJoystick->GetRawAxis(ROTATE_ARM_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT) * ARM_ROTATION_MOTOR_SCALING_SPEED;
+    m_pArmRotationMotors->Set(armMotorValue);
+    
+    // Intake motor
+    if (m_pControlJoystick->GetRawButton(INTAKE_SPIN_IN_BUTTON))
+    {
+        m_pIntakeMotor->Set(ControlMode::PercentOutput, INTAKE_MOTOR_SPEED);
+    }
+    // Control input just needs to be non-zero (not using proportional motor control on the intake)
+    else if (Trim(m_pControlJoystick->GetRawAxis(INTAKE_SPIN_OUT_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT) != 0.0)
+    {
+        m_pIntakeMotor->Set(ControlMode::PercentOutput, -INTAKE_MOTOR_SPEED);
+    }
+    else
+    {
+        m_pIntakeMotor->Set(ControlMode::PercentOutput, OFF);
+    }
 }
 
 
@@ -488,12 +539,17 @@ void YtaRobot::DriveControlSequence()
     {
         yAxisDrive *= -1;
     }
-
+    
+    // Get the slow drive control joystick input
+    double xAxisSlowDrive = m_pDriveJoystick->GetRawAxis(DRIVE_SLOW_X_AXIS);
+    xAxisSlowDrive = Trim((xAxisSlowDrive * DRIVE_SLOW_THROTTLE_VALUE), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT);
+    
+    // If the normal x-axis drive is non-zero, use it.  Otherwise use the slow drive input, which could also be zero.
+    xAxisDrive = (xAxisDrive != 0.0) ? xAxisDrive : xAxisSlowDrive;
+    
     // Filter motor speeds
     double leftSpeed = Limit((xAxisDrive - yAxisDrive), DRIVE_MOTOR_UPPER_LIMIT, DRIVE_MOTOR_LOWER_LIMIT);
     double rightSpeed = Limit((xAxisDrive + yAxisDrive), DRIVE_MOTOR_UPPER_LIMIT, DRIVE_MOTOR_LOWER_LIMIT);
-    //double leftSpeed = Limit((-xAxisDrive + yAxisDrive), DRIVE_MOTOR_UPPER_LIMIT, DRIVE_MOTOR_LOWER_LIMIT);
-    //double rightSpeed = Limit((-xAxisDrive - yAxisDrive), DRIVE_MOTOR_UPPER_LIMIT, DRIVE_MOTOR_LOWER_LIMIT);
     
     // Set motor speed
     m_pLeftDriveMotors->Set(leftSpeed);

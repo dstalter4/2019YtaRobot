@@ -142,11 +142,11 @@ private:
     };
     
     // This is a hacky way of retrieving a pointer to the robot object
-    // outside of the robot class.  The robot object itself is statically
-    // allocated when StartRobot() is called in the RobotBase class.
+    // outside of the robot class.  The robot object itself is a static
+    // variable inside the function StartRobot() in the RobotBase class.
     // This makes retrieving the address difficult.  To work around this,
     // we'll allocate some static storage for a robot object.  When
-    // RobotInit() is called, m_pThis will be filled out.  This only works
+    // RobotInit() is called, m_pThis will be filled out.  This works
     // because only one YtaRobot object is ever constructed.
     static YtaRobot * m_pThis;
     inline void SetStaticThisInstance() { m_pThis = this; }
@@ -210,6 +210,9 @@ private:
     // Function to automate slightly moving the robot
     void DirectionalInch(double speed, EncoderDirection direction);
 
+    // Main sequence for controlling the lift and arm
+    void LiftAndArmSequence();
+
     // Main sequence for LED control
     void LedSequence();
 
@@ -250,6 +253,10 @@ private:
     // Motors
     TalonMotorGroup *               m_pLeftDriveMotors;                     // Left drive motor control
     TalonMotorGroup *               m_pRightDriveMotors;                    // Right drive motor control
+    TalonMotorGroup *               m_pLiftMotors;                          // Controls vertical movement of the main arm
+    TalonMotorGroup *               m_pArmRotationMotors;                   // Controls rotation of the main arm
+    TalonSRX *                      m_pIntakeMotor;                         // Controls intake of the ball
+    TalonSRX *                      m_pJackStandMotor;                      // Controls the jack stand mechanism
     
     // Spike Relays
     Relay *                         m_pLedRelay;                            // Controls whether or not the LEDs are lit up
@@ -263,7 +270,8 @@ private:
     // Solenoids
     // Note: No compressor related objects required,
     // instantiating a solenoid gets that for us.
-    // (none)
+    DoubleSolenoid *                m_pHatchSolenoid;
+    DoubleSolenoid *                m_pJackStandSolenoid;
     
     // Servos
     // (none)
@@ -322,19 +330,29 @@ private:
     static const int                CONTROL_JOYSTICK_PORT                   = 1;
 
     // Driver buttons
-    static const int                CAMERA_TOGGLE_FULL_PROCESSING_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 11 :  7;
-    static const int                CAMERA_TOGGLE_PROCESSED_IMAGE_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 12 :  8;
-    static const int                SELECT_FRONT_CAMERA_BUTTON              = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 13 :  9;
-    static const int                SELECT_BACK_CAMERA_BUTTON               = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 : 10;
-    static const int                DRIVE_CONTROLS_FORWARD_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 15 : 11;
-    static const int                DRIVE_CONTROLS_REVERSE_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 16 : 12;
+    static const int                DRIVE_SLOW_X_AXIS                       = YtaController::RawAxes::RIGHT_X_AXIS;
+    static const int                DRIVE_SLOW_Y_AXIS                       = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                CAMERA_TOGGLE_FULL_PROCESSING_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 11 : YtaController::RawButtons::SELECT;
+    static const int                CAMERA_TOGGLE_PROCESSED_IMAGE_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 12 : YtaController::RawButtons::START;
+    static const int                SELECT_FRONT_CAMERA_BUTTON              = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 13 : YtaController::RawButtons::LEFT_STICK_CLICK;
+    static const int                SELECT_BACK_CAMERA_BUTTON               = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 : YtaController::RawButtons::RIGHT_STICK_CLICK;
+    static const int                DRIVE_CONTROLS_FORWARD_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 15 : YtaController::RawButtons::NO_BUTTON;
+    static const int                DRIVE_CONTROLS_REVERSE_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 16 : YtaController::RawButtons::NO_BUTTON;
     
     // Control buttons
-    static const int                ESTOP_BUTTON                            = (CONTROL_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 :  8;
+    static const int                MOVE_LIFT_AXIS                          = YtaController::RawAxes::LEFT_Y_AXIS;
+    static const int                ROTATE_ARM_AXIS                         = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                INTAKE_SPIN_IN_BUTTON                   = YtaController::RawButtons::LT;
+    static const int                INTAKE_SPIN_OUT_AXIS                    = YtaController::RawAxes::LEFT_TRIGGER;
+    static const int                ESTOP_BUTTON                            = (CONTROL_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 :  YtaController::RawButtons::START;
 
     // CAN Signals
     static const int                LEFT_MOTORS_CAN_START_ID                = 1;
     static const int                RIGHT_MOTORS_CAN_START_ID               = 4;
+    static const int                LIFT_MOTORS_CAN_START_ID                = 7;
+    static const int                JACK_STAND_MOTOR_CAN_ID                 = 9;
+    static const int                ARM_ROTATION_MOTORS_CAN_START_ID        = 10;
+    static const int                INTAKE_MOTOR_CAN_ID                     = 12;
 
     // PWM Signals
     // (none)
@@ -349,7 +367,10 @@ private:
     // (none)
     
     // Solenoid Signals
-    // (none)
+    static const int                HATCH_SOLENOID_FORWARD_CHANNEL          = 0;
+    static const int                HATCH_SOLENOID_REVERSE_CHANNEL          = 1;
+    static const int                JACK_STAND_SOLENOID_FORWARD_CHANNEL     = 2;
+    static const int                JACK_STAND_SOLENOID_REVERSE_CHANNEL     = 3;
     
     // Misc
     const std::string               AUTO_ROUTINE_1_STRING                   = "Autonomous Routine 1";
@@ -362,6 +383,8 @@ private:
     static const int                SINGLE_MOTOR                            = 1;
     static const int                NUMBER_OF_LEFT_DRIVE_MOTORS             = 3;
     static const int                NUMBER_OF_RIGHT_DRIVE_MOTORS            = 3;
+    static const int                NUMBER_OF_LIFT_MOTORS                   = 2;
+    static const int                NUMBER_OF_ARM_ROTATION_MOTORS           = 2;
     static const int                POV_INPUT_TOLERANCE_VALUE               = 30;
     static const int                SCALE_TO_PERCENT                        = 100;
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
@@ -371,12 +394,15 @@ private:
     
     static const unsigned           I2C_RUN_INTERVAL_MS                     = 500U;
     
+    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.50;
+    static constexpr double         INTAKE_MOTOR_SPEED                      =  0.70;
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
     static constexpr double         CONTROL_THROTTLE_VALUE_RANGE            =  0.65;
     static constexpr double         CONTROL_THROTTLE_VALUE_BASE             =  0.35;
     static constexpr double         DRIVE_THROTTLE_VALUE_RANGE              =  0.65;
     static constexpr double         DRIVE_THROTTLE_VALUE_BASE               =  0.35;
+    static constexpr double         DRIVE_SLOW_THROTTLE_VALUE               =  0.25;
     static constexpr double         DRIVE_MOTOR_UPPER_LIMIT                 =  1.00;
     static constexpr double         DRIVE_MOTOR_LOWER_LIMIT                 = -1.00;
     static constexpr double         DRIVE_WHEEL_DIAMETER_INCHES             =  4.00;
@@ -628,7 +654,7 @@ inline double YtaRobot::Trim( double num, double upper, double lower )
 {
     if ( (num < upper) && (num > lower) )
     {
-        return 0;
+        return 0.0;
     }
     
     return num;
