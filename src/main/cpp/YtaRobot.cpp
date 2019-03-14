@@ -55,6 +55,11 @@ YtaRobot::YtaRobot() :
     m_pRedLedRelay                      (new Relay(RED_LED_RELAY_ID)),
     m_pGreenLedRelay                    (new Relay(GREEN_LED_RELAY_ID)),
     m_pBlueLedRelay                     (new Relay(BLUE_LED_RELAY_ID)),
+    m_pArmRotationLimitSwitch           (new DigitalInput(ARM_ROTATION_LIMIT_SWITCH_DIO_CHANNEL)),
+    m_pLiftBottomLimitSwitch            (new DigitalInput(LIFT_BOTTOM_LIMIT_SWITCH_DIO_CHANNEL)),
+    m_pLiftTopLimitSwitch               (new DigitalInput(LIFT_TOP_LIMIT_SWITCH_DIO_CHANNEL)),
+    m_pCenterStageLimitSwitch           (new DigitalInput(CENTER_STAGE_LIMIT_SWITCH_DIO_CHANNEL)),
+    m_pDebugOutput                      (new DigitalOutput(DEBUG_OUTPUT_DIO_CHANNEL)),
     m_pHatchSolenoid                    (new DoubleSolenoid(HATCH_SOLENOID_FORWARD_CHANNEL, HATCH_SOLENOID_REVERSE_CHANNEL)),
     m_pJackStandSolenoid                (new DoubleSolenoid(JACK_STAND_SOLENOID_FORWARD_CHANNEL, JACK_STAND_SOLENOID_REVERSE_CHANNEL)),
     m_pAutonomousTimer                  (new Timer()),
@@ -235,6 +240,9 @@ void YtaRobot::InitialStateSetup()
     
     // Just in case constructor was called before these were set (likely the case)
     m_AllianceColor = m_pDriverStation->GetAlliance();
+    
+    // Clear the debug output pin
+    m_pDebugOutput->Set(false);
 }
 
 
@@ -302,15 +310,38 @@ void YtaRobot::TeleopPeriodic()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::LiftAndArmSequence()
 {
+    // Vex and magnetic limit switches read 3.3 when open, 0.0 when closed (touching)
+    
     // Lift up/down motors
+    // This motor is wired for negative up, positive down
     // Joystick input maps to -1 up, +1 down
     double liftMotorValue = Trim(-m_pControlJoystick->GetRawAxis(MOVE_LIFT_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT);
+    
+    // Make sure the lift/carriage are not fully extended
+    if ((liftMotorValue > 0.0) && (!m_pCenterStageLimitSwitch->Get()) && (!m_pLiftTopLimitSwitch->Get()))
+    {
+        // Upward motion not allowed, downward only
+        liftMotorValue = 0.0;
+    }
+    
     m_pLiftMotors->Set(-liftMotorValue);
+    
+    
     
     // Arm rotation motors
     // Joystick input maps to -1 up, +1 down
     double armMotorValue = Trim(-m_pControlJoystick->GetRawAxis(ROTATE_ARM_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT) * ARM_ROTATION_MOTOR_SCALING_SPEED;
+    
+    // Make sure the arm rotation limit switch is not tripped
+    if ((armMotorValue > 0.0) && (!m_pArmRotationLimitSwitch->Get()))
+    {
+        // Upward motion not allowed, downward only
+        armMotorValue = 0.0;
+    }
+    
     m_pArmRotationMotors->Set(armMotorValue);
+    
+    
     
     // Intake motor
     if (m_pControlJoystick->GetRawButton(INTAKE_SPIN_IN_BUTTON))

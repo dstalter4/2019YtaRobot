@@ -266,7 +266,11 @@ private:
     Relay *                         m_pBlueLedRelay;                        // Controls whether or not the blue LEDs are lit up
     
     // Digital I/O
-    // (none)
+    DigitalInput *                  m_pArmRotationLimitSwitch;              // Tracks when the arm is all the way up (vertical)
+    DigitalInput *                  m_pLiftBottomLimitSwitch;               // Tracks when the carriage is back all the way down
+    DigitalInput *                  m_pLiftTopLimitSwitch;                  // Tracks when the carriage has traveled all the way up
+    DigitalInput *                  m_pCenterStageLimitSwitch;              // Tracks when the center stage has fully extended
+    DigitalOutput *                 m_pDebugOutput;
     
     // Analog I/O
     // (none)
@@ -366,7 +370,11 @@ private:
     static const int                BLUE_LED_RELAY_ID                       = 3;
     
     // Digital I/O Signals
-    // (none)
+    static const int                ARM_ROTATION_LIMIT_SWITCH_DIO_CHANNEL   = 0;
+    static const int                LIFT_BOTTOM_LIMIT_SWITCH_DIO_CHANNEL    = 1;
+    static const int                LIFT_TOP_LIMIT_SWITCH_DIO_CHANNEL       = 2;
+    static const int                CENTER_STAGE_LIMIT_SWITCH_DIO_CHANNEL   = 3;
+    static const int                DEBUG_OUTPUT_DIO_CHANNEL                = 7;
     
     // Analog I/O Signals
     // (none)
