@@ -145,8 +145,8 @@ private:
     // outside of the robot class.  The robot object itself is a static
     // variable inside the function StartRobot() in the RobotBase class.
     // This makes retrieving the address difficult.  To work around this,
-    // we'll allocate some static storage for a robot object.  When
-    // RobotInit() is called, m_pThis will be filled out.  This works
+    // we'll allocate some static storage for a pointer to a robot object.
+    // When RobotInit() is called, m_pThis will be filled out.  This works
     // because only one YtaRobot object is ever constructed.
     static YtaRobot * m_pThis;
     inline void SetStaticThisInstance() { m_pThis = this; }
@@ -286,7 +286,6 @@ private:
     // Timers
     Timer *                         m_pAutonomousTimer;                     // Time things during autonomous
     Timer *                         m_pInchingDriveTimer;                   // Keep track of an inching drive operation
-    Timer *                         m_pCameraRunTimer;                      // Keep track of how often to do camera intense code runs
     Timer *                         m_pSafetyTimer;                         // Fail safe in case critical operations don't complete
     
     // Accelerometer
@@ -398,9 +397,10 @@ private:
     
     static const bool               ADXRS450_GYRO_PRESENT                   = false;
     
+    static const unsigned           CAMERA_RUN_INTERVAL_MS                  = 1000U;
     static const unsigned           I2C_RUN_INTERVAL_MS                     = 500U;
     
-    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.50;
+    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.60;
     static constexpr double         INTAKE_MOTOR_SPEED                      =  0.70;
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
@@ -408,14 +408,13 @@ private:
     static constexpr double         CONTROL_THROTTLE_VALUE_BASE             =  0.35;
     static constexpr double         DRIVE_THROTTLE_VALUE_RANGE              =  0.65;
     static constexpr double         DRIVE_THROTTLE_VALUE_BASE               =  0.35;
-    static constexpr double         DRIVE_SLOW_THROTTLE_VALUE               =  0.25;
+    static constexpr double         DRIVE_SLOW_THROTTLE_VALUE               =  0.35;
     static constexpr double         DRIVE_MOTOR_UPPER_LIMIT                 =  1.00;
     static constexpr double         DRIVE_MOTOR_LOWER_LIMIT                 = -1.00;
     static constexpr double         DRIVE_WHEEL_DIAMETER_INCHES             =  4.00;
     static constexpr double         INCHING_DRIVE_SPEED                     =  0.25;
     static constexpr double         INCHING_DRIVE_DELAY_S                   =  0.10;
     
-    static constexpr double         CAMERA_RUN_INTERVAL_S                   =  1.00;
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
     
     // This may seem backward, but the LEDS work by creating

@@ -48,7 +48,7 @@ YtaRobot::YtaRobot() :
     m_pLeftDriveMotors                  (new TalonMotorGroup(NUMBER_OF_LEFT_DRIVE_MOTORS, LEFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
     m_pRightDriveMotors                 (new TalonMotorGroup(NUMBER_OF_RIGHT_DRIVE_MOTORS, RIGHT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
     m_pLiftMotors                       (new TalonMotorGroup(NUMBER_OF_LIFT_MOTORS, LIFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW)),
-    m_pArmRotationMotors                (new TalonMotorGroup(NUMBER_OF_ARM_ROTATION_MOTORS, ARM_ROTATION_MOTORS_CAN_START_ID, MotorGroupControlMode::INVERSE)),
+    m_pArmRotationMotors                (new TalonMotorGroup(NUMBER_OF_ARM_ROTATION_MOTORS, ARM_ROTATION_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW)),
     m_pIntakeMotor                      (new TalonSRX(INTAKE_MOTOR_CAN_ID)),
     m_pJackStandMotor                   (new TalonSRX(JACK_STAND_MOTOR_CAN_ID)),
     m_pLedsEnableRelay                  (new Relay(LEDS_ENABLE_RELAY_ID)),
@@ -59,7 +59,6 @@ YtaRobot::YtaRobot() :
     m_pJackStandSolenoid                (new DoubleSolenoid(JACK_STAND_SOLENOID_FORWARD_CHANNEL, JACK_STAND_SOLENOID_REVERSE_CHANNEL)),
     m_pAutonomousTimer                  (new Timer()),
     m_pInchingDriveTimer                (new Timer()),
-    m_pCameraRunTimer                   (new Timer()),
     m_pSafetyTimer                      (new Timer()),
     m_pAccelerometer                    (new BuiltInAccelerometer),
     m_pAdxrs450Gyro                     (nullptr),
@@ -209,9 +208,10 @@ void YtaRobot::InitialStateSetup()
     m_pLeftDriveMotors->SetBrakeMode();
     m_pRightDriveMotors->SetBrakeMode();
     
-    // Configure lift and arm motors as brake
+    // Configure the lift, arm and intake motors as brake
     m_pLiftMotors->SetBrakeMode();
     m_pArmRotationMotors->SetBrakeMode();
+    m_pIntakeMotor->SetNeutralMode(NeutralMode::Brake);
     
     // Tare encoders
     m_pLeftDriveMotors->TareEncoder();
@@ -232,10 +232,6 @@ void YtaRobot::InitialStateSetup()
     m_pInchingDriveTimer->Reset();
     m_pSafetyTimer->Stop();
     m_pSafetyTimer->Reset();
-    
-    // Start the camera timer
-    m_pCameraRunTimer->Reset();
-    m_pCameraRunTimer->Start();
     
     // Just in case constructor was called before these were set (likely the case)
     m_AllianceColor = m_pDriverStation->GetAlliance();
@@ -440,11 +436,7 @@ void YtaRobot::CameraSequence()
 {
     static bool bFullProcessing = false;
     
-    // To not kill the CPU, only do full vision processing (particle analysis) periodically
-    if (m_pCameraRunTimer->Get() >= CAMERA_RUN_INTERVAL_S)
-    {
-        m_pCameraRunTimer->Reset();
-    }
+    // @note: Use std::chrono is precise time control is needed.
     
     // Check for any change in camera
     if (m_pDriveJoystick->GetRawButton(SELECT_FRONT_CAMERA_BUTTON))
