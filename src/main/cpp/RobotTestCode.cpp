@@ -202,3 +202,110 @@ void YtaRobot::TankDrive()
     m_pLeftDriveMotors->Set(-m_pDriveJoystick->GetY());
     m_pRightDriveMotors->Set(m_pControlJoystick->GetY());
 }
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method YtaRobot::LedsTest
+///
+/// Test code to verify functionality of RGB LED strips.
+///
+////////////////////////////////////////////////////////////////
+void YtaRobot::LedsTest()
+{
+    enum LedDisplayState
+    {
+        NONE,
+        RED_ONLY,
+        GREEN_ONLY,
+        BLUE_ONLY,
+        RED_GREEN,
+        RED_BLUE,
+        GREEN_BLUE,
+        RED_GREEN_BLUE
+    };
+    static LedDisplayState displayState = NONE;
+    
+    static std::chrono::time_point<std::chrono::high_resolution_clock> currentTime;
+    static std::chrono::time_point<std::chrono::high_resolution_clock> oldTime;
+    currentTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = currentTime - oldTime;
+    if (elapsed.count() > 1000)
+    {
+        // kForward turns the LEDs off (voltage difference is zero)
+        // kOff turns the LEDs on (voltage difference is +12V)
+        switch (displayState)
+        {
+            case NONE:
+            {
+                m_pRedLedRelay->Set(LEDS_OFF);
+                m_pGreenLedRelay->Set(LEDS_OFF);
+                m_pBlueLedRelay->Set(LEDS_OFF);
+                displayState = RED_ONLY;
+                break;
+            }
+            case RED_ONLY:
+            {
+                m_pRedLedRelay->Set(LEDS_ON);
+                m_pGreenLedRelay->Set(LEDS_OFF);
+                m_pBlueLedRelay->Set(LEDS_OFF);
+                displayState = GREEN_ONLY;
+                break;
+            }
+            case GREEN_ONLY:
+            {
+                m_pRedLedRelay->Set(LEDS_OFF);
+                m_pGreenLedRelay->Set(LEDS_ON);
+                m_pBlueLedRelay->Set(LEDS_OFF);
+                displayState = BLUE_ONLY;
+                break;
+            }
+            case BLUE_ONLY:
+            {
+                m_pRedLedRelay->Set(LEDS_OFF);
+                m_pGreenLedRelay->Set(LEDS_OFF);
+                m_pBlueLedRelay->Set(LEDS_ON);
+                displayState = RED_GREEN;
+                break;
+            }
+            case RED_GREEN:
+            {
+                m_pRedLedRelay->Set(LEDS_ON);
+                m_pGreenLedRelay->Set(LEDS_ON);
+                m_pBlueLedRelay->Set(LEDS_OFF);
+                displayState = RED_BLUE;
+                break;
+            }
+            case RED_BLUE:
+            {
+                m_pRedLedRelay->Set(LEDS_ON);
+                m_pGreenLedRelay->Set(LEDS_OFF);
+                m_pBlueLedRelay->Set(LEDS_ON);
+                displayState = GREEN_BLUE;
+                break;
+            }
+            case GREEN_BLUE:
+            {
+                m_pRedLedRelay->Set(LEDS_OFF);
+                m_pGreenLedRelay->Set(LEDS_ON);
+                m_pBlueLedRelay->Set(LEDS_ON);
+                displayState = RED_GREEN_BLUE;
+                break;
+            }
+            case RED_GREEN_BLUE:
+            {
+                m_pRedLedRelay->Set(LEDS_ON);
+                m_pGreenLedRelay->Set(LEDS_ON);
+                m_pBlueLedRelay->Set(LEDS_ON);
+                displayState = NONE;
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+
+        oldTime = currentTime;
+    }
+}

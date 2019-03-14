@@ -233,6 +233,7 @@ private:
     void TeleopTestCode();
     void MotorTest();
     void TankDrive();
+    void LedsTest();
     
     // MEMBER VARIABLES
     
@@ -259,7 +260,10 @@ private:
     TalonSRX *                      m_pJackStandMotor;                      // Controls the jack stand mechanism
     
     // Spike Relays
-    Relay *                         m_pLedRelay;                            // Controls whether or not the LEDs are lit up
+    Relay *                         m_pLedsEnableRelay;                     // Controls whether the LEDs will light up at all
+    Relay *                         m_pRedLedRelay;                         // Controls whether or not the red LEDs are lit up
+    Relay *                         m_pGreenLedRelay;                       // Controls whether or not the green LEDs are lit up
+    Relay *                         m_pBlueLedRelay;                        // Controls whether or not the blue LEDs are lit up
     
     // Digital I/O
     // (none)
@@ -318,7 +322,6 @@ private:
     RobotMode                       m_RobotMode;                            // Keep track of the current robot state
     Alliance                        m_AllianceColor;                        // Color reported by driver station during a match
     bool                            m_bDriveSwap;                           // Allow the user to push a button to change forward/reverse
-    bool                            m_bLed;                                 // Keep track of turning an LED on/off
     
     // CONSTS
     
@@ -358,7 +361,10 @@ private:
     // (none)
     
     // Relays
-    static const int                LED_RELAY_ID                            = 3;
+    static const int                LEDS_ENABLE_RELAY_ID                    = 0;
+    static const int                RED_LED_RELAY_ID                        = 1;
+    static const int                GREEN_LED_RELAY_ID                      = 2;
+    static const int                BLUE_LED_RELAY_ID                       = 3;
     
     // Digital I/O Signals
     // (none)
@@ -411,6 +417,19 @@ private:
     
     static constexpr double         CAMERA_RUN_INTERVAL_S                   =  1.00;
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
+    
+    // This may seem backward, but the LEDS work by creating
+    // a voltage differential.  The LED strip has four lines,
+    // 12V, red, green and blue.  The 12V line gets enabled by
+    // one relay during initialization.  The RGB LEDs turn on
+    // when there is a voltage differential, so 'on' is when
+    // there is 0V on a RGB line (kOff) and 'off' is when there
+    // is 12V on a RGB line (kForward).
+    
+    static const Relay::Value       LEDS_ENABLED                            = Relay::kForward;
+    static const Relay::Value       LEDS_DISABLED                           = Relay::kOff;
+    static const Relay::Value       LEDS_OFF                                = Relay::kForward;
+    static const Relay::Value       LEDS_ON                                 = Relay::kOff;
     
 };  // End class
 

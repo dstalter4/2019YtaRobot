@@ -47,11 +47,14 @@ YtaRobot::YtaRobot() :
     m_pControlXboxGameSir               (new XboxController(CONTROL_JOYSTICK_PORT)),
     m_pLeftDriveMotors                  (new TalonMotorGroup(NUMBER_OF_LEFT_DRIVE_MOTORS, LEFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
     m_pRightDriveMotors                 (new TalonMotorGroup(NUMBER_OF_RIGHT_DRIVE_MOTORS, RIGHT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW, FeedbackDevice::CTRE_MagEncoder_Relative)),
-    m_pLedRelay                         (new Relay(LED_RELAY_ID)),
     m_pLiftMotors                       (new TalonMotorGroup(NUMBER_OF_LIFT_MOTORS, LIFT_MOTORS_CAN_START_ID, MotorGroupControlMode::FOLLOW)),
     m_pArmRotationMotors                (new TalonMotorGroup(NUMBER_OF_ARM_ROTATION_MOTORS, ARM_ROTATION_MOTORS_CAN_START_ID, MotorGroupControlMode::INVERSE)),
     m_pIntakeMotor                      (new TalonSRX(INTAKE_MOTOR_CAN_ID)),
     m_pJackStandMotor                   (new TalonSRX(JACK_STAND_MOTOR_CAN_ID)),
+    m_pLedsEnableRelay                  (new Relay(LEDS_ENABLE_RELAY_ID)),
+    m_pRedLedRelay                      (new Relay(RED_LED_RELAY_ID)),
+    m_pGreenLedRelay                    (new Relay(GREEN_LED_RELAY_ID)),
+    m_pBlueLedRelay                     (new Relay(BLUE_LED_RELAY_ID)),
     m_pHatchSolenoid                    (new DoubleSolenoid(HATCH_SOLENOID_FORWARD_CHANNEL, HATCH_SOLENOID_REVERSE_CHANNEL)),
     m_pJackStandSolenoid                (new DoubleSolenoid(JACK_STAND_SOLENOID_FORWARD_CHANNEL, JACK_STAND_SOLENOID_REVERSE_CHANNEL)),
     m_pAutonomousTimer                  (new Timer()),
@@ -69,8 +72,7 @@ YtaRobot::YtaRobot() :
     m_I2cThread                         (RobotI2c::I2cThread),
     m_RobotMode                         (ROBOT_MODE_NOT_SET),
     m_AllianceColor                     (m_pDriverStation->GetAlliance()),
-    m_bDriveSwap                        (false),
-    m_bLed                              (false)
+    m_bDriveSwap                        (false)
 {
     RobotUtils::DisplayMessage("Robot constructor.");
     
@@ -219,6 +221,12 @@ void YtaRobot::InitialStateSetup()
     m_pHatchSolenoid->Set(DoubleSolenoid::kOff);
     m_pJackStandSolenoid->Set(DoubleSolenoid::kOff);
     
+    // Enable LEDs, but keep them off for now
+    m_pLedsEnableRelay->Set(LEDS_ENABLED);
+    m_pRedLedRelay->Set(LEDS_OFF);
+    m_pGreenLedRelay->Set(LEDS_OFF);
+    m_pBlueLedRelay->Set(LEDS_OFF);
+    
     // Stop/clear any timers, just in case
     m_pInchingDriveTimer->Stop();
     m_pInchingDriveTimer->Reset();
@@ -335,16 +343,6 @@ void YtaRobot::LiftAndArmSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::LedSequence()
 {
-    // If the target's in range, give a visual indication
-    if (m_bLed)
-    {
-        m_pLedRelay->Set(Relay::kOn);
-    }
-    else
-    {
-        // Otherwise set them off
-        m_pLedRelay->Set(Relay::kOff);
-    }
 }
 
 
@@ -665,6 +663,12 @@ void YtaRobot::DisabledInit()
     // All motors off
     m_pLeftDriveMotors->Set(OFF);
     m_pRightDriveMotors->Set(OFF);
+    
+    // Even though 'Disable' shuts off the relay signals, explitily turn the LEDs off
+    m_pLedsEnableRelay->Set(LEDS_DISABLED);
+    m_pRedLedRelay->Set(LEDS_OFF);
+    m_pGreenLedRelay->Set(LEDS_OFF);
+    m_pBlueLedRelay->Set(LEDS_OFF);
 }
 
 
