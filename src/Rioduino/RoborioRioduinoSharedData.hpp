@@ -134,7 +134,7 @@ namespace RoborioRioduinoSharedData
         AxisInfo m_xAxisInfo;
         AxisInfo m_yAxisInfo;
         AxisInfo m_zAxisInfo;
-
+        
         static const uint16_t MAX_VALID_ANGLE_VALUE = 180U;
     };
     
