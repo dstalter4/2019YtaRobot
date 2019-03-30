@@ -36,6 +36,62 @@ unsigned int            RobotI2c::m_NumInvalidTransactions  = 0U;
 
 
 ////////////////////////////////////////////////////////////////
+/// @method RobotI2c::ManualTrigger
+///
+/// Function that will manually gather I2C data on demand from
+/// the RIOduino instead of using the main thread.
+///
+////////////////////////////////////////////////////////////////
+void RobotI2c::ManualTrigger()
+{
+    enum I2cPhase
+    {
+        SEND_REQUEST,
+        RECEIVE_DATA
+    };
+    
+    static I2cPhase phase = SEND_REQUEST;
+    
+    if (phase == SEND_REQUEST)
+    {
+        // Toggle interrupt
+        m_DigitalOutputToRioduino.Set(true);
+        phase = RECEIVE_DATA;
+    }
+    
+    // Delay to let the RIOduino process
+    /*
+    static std::chrono::time_point<std::chrono::high_resolution_clock> currentTime;
+    static std::chrono::time_point<std::chrono::high_resolution_clock> oldTime;
+    currentTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = currentTime - oldTime;
+    while (elapsed.count() < 240) {}
+    */
+    //std::this_thread::sleep_for(std::chrono::milliseconds(240));//m_ThreadUpdateRateMs));
+    
+    else if (phase == RECEIVE_DATA)
+    {
+        // Deactivate the interrupt
+        m_DigitalOutputToRioduino.Set(false);
+        
+        // Request and process data
+        //UpdateI2cData();
+        static_cast<void>(m_I2cRioduino.ReadOnly(8, reinterpret_cast<uint8_t *>(&m_I2cRioduinoData)));
+        //UnpackI2cData();
+        
+        phase = SEND_REQUEST;
+    }
+    
+    else
+    {
+        // Should never happen
+        phase = SEND_REQUEST;
+    }
+}
+
+
+
+////////////////////////////////////////////////////////////////
 /// @method RobotI2c::I2cThread
 ///
 /// The main I2C thread on the robot.
@@ -43,8 +99,10 @@ unsigned int            RobotI2c::m_NumInvalidTransactions  = 0U;
 ////////////////////////////////////////////////////////////////
 void RobotI2c::I2cThread()
 {
+    // @todo: Port BNO055 driver from Arduino to roboRIO.
     RobotUtils::DisplayMessage("I2C thread detached.");
-
+    while (true) {}
+    
     // The RIOduino will have booted well before this.
     // Trigger both of its loop control variables to make
     // sure it doesn't hang during the main loop.

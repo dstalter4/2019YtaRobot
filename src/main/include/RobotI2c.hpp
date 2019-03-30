@@ -42,6 +42,7 @@ public:
     
     // The vision thread
     static void I2cThread();
+    static void ManualTrigger();
     
     // Send a command via I2C
     static void SendCommand(I2cCommandSelection command);
