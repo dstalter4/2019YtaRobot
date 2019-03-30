@@ -41,12 +41,14 @@ namespace YtaRobotAutonomous
     // STRUCTS
     // (none)
     
-    // MEMBER VARIABLES
+    // VARIABLES
+    static bool bAutonomousExecutionComplete;
     
     // CONSTS
     
     // Autonomous Mode Constants
-    // TODO 2019: Use frc::SendableChooser<std::string>
+    // @todo: Convert to class and make a friend in YtaRobot
+    
     // Note: Only enable one autonomous routine!
     // Note: Autonomous routines are currently NOT controlled
     // by physical switches on the robot.
@@ -79,6 +81,8 @@ namespace YtaRobotAutonomous
     static constexpr double ENCODER_COMPENSATE_SPEED            =  0.02;
     
     // Autonomous sonar drive constants
+    static const uint32_t   SONAR_DRIVE_STATE_SIDE_MASK         = 0x0F;
+    static const uint32_t   SONAR_DRIVE_STATE_LATERAL_MASK      = 0xF0;
     static const int        SONAR_LATERAL_DRIVE_DIST_INCHES     =  7*12;
     static const int        SONAR_SIDE_DRIVE_DIST_INCHES        =     6;
     static const int        SONAR_MIN_DRIVE_ENABLE_INCHES       = 10*12;
@@ -92,7 +96,7 @@ namespace YtaRobotAutonomous
     static constexpr double SONAR_COMPENSATE_RIGHT_SPEED        =  0.05;
     
     // Autonomous misc constants
-    static const unsigned   I2C_THREAD_UPDATE_RATE_MS           = 50U;
+    static const unsigned   I2C_THREAD_UPDATE_RATE_MS           = 20U;
     
 } // End namespace
 

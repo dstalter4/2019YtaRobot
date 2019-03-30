@@ -31,8 +31,8 @@
 bool YtaRobot::AutonomousSonarDrive(SonarDriveDirection driveDirection, SonarDriveState driveState, uint32_t destLateralDist, uint32_t destSideDist)
 {    
     // Set directions based on drive state
-    uint32_t sideDirection = driveState & SONAR_DRIVE_STATE_SIDE_MASK;
-    uint32_t lateralDirection = driveState & SONAR_DRIVE_STATE_LATERAL_MASK;
+    uint32_t sideDirection = driveState & YtaRobotAutonomous::SONAR_DRIVE_STATE_SIDE_MASK;
+    uint32_t lateralDirection = driveState & YtaRobotAutonomous::SONAR_DRIVE_STATE_LATERAL_MASK;
     
     uint32_t frontGuideSensor = 0U;
     uint32_t backGuideSensor = 0U;

@@ -34,6 +34,9 @@ void YtaRobot::AutonomousInit()
     // Put everything in a stable state
     InitialStateSetup();
     
+    // Indicate the autonomous routine has not executed yet
+    YtaRobotAutonomous::bAutonomousExecutionComplete = false;
+    
     m_pAutonomousTimer->Stop();
     m_pAutonomousTimer->Reset();
     m_pSafetyTimer->Stop();
@@ -64,7 +67,13 @@ void YtaRobot::AutonomousPeriodic()
     // Log a mode change if one occurred
     CheckAndUpdateRobotMode(ROBOT_MODE_AUTONOMOUS);
     
-    // TODO: Figure out how to kick the watchdog from here so it doesn't overrun
+    if (YtaRobotAutonomous::bAutonomousExecutionComplete)
+    {
+        return;
+    }
+    
+    // @todo: Figure out how to kick the watchdog from here so it doesn't overrun.
+    // @note: Since autonomous is configured as a one shot state machine, there will definitely be watchdog overrun.
     
     // Change values in the header to control having an
     // autonomous routine and which is selected
@@ -111,11 +120,15 @@ void YtaRobot::AutonomousPeriodic()
         RobotUtils::DisplayMessage("No auto selection made, going idle.");
     }
     
+    // One shot through autonomous is over, indicate as such.
+    YtaRobotAutonomous::bAutonomousExecutionComplete = true;
+    /*
     // Idle until auto is terminated
     RobotUtils::DisplayMessage("Auto idle loop.");
     while ( m_pDriverStation->IsAutonomous() && m_pDriverStation->IsEnabled() )
     {
     }
+    */
 }
 
 

@@ -17,6 +17,7 @@
 
 // SYSTEM INCLUDES
 #include <cmath>                                // for M_PI
+#include <thread>                               // for std::thread
 
 // C INCLUDES
 #include "frc/WPILib.h"                         // for FRC library
@@ -94,6 +95,13 @@ private:
         XBOX_GAMESIR
     };
     
+    enum DriveState
+    {
+        MANUAL_CONTROL,
+        DIRECTIONAL_INCH,
+        DIRECTIONAL_ALIGN
+    };
+    
     enum EncoderDirection
     {
         FORWARD,
@@ -134,12 +142,36 @@ private:
     // STRUCTS
     struct TriggerChangeValues
     {
+    public:
+        // Constructor
+        TriggerChangeValues(GenericHID * rpJoystick, int button) :
+            m_pJoystick(rpJoystick),
+            m_ButtonNumber(button),
+            m_bCurrentValue(false),
+            m_bOldValue(false)
+        {
+        }
+        
         // Detect that a button has been pressed (rather than released)
         inline bool DetectChange();
         
+    private:
+        GenericHID * m_pJoystick;
+        int m_ButtonNumber;
         bool m_bCurrentValue;
         bool m_bOldValue;
     };
+    
+    // This is a hacky way of retrieving a pointer to the robot object
+    // outside of the robot class.  The robot object itself is a static
+    // variable inside the function StartRobot() in the RobotBase class.
+    // This makes retrieving the address difficult.  To work around this,
+    // we'll allocate some static storage for a pointer to a robot object.
+    // When RobotInit() is called, m_pThis will be filled out.  This works
+    // because only one YtaRobot object is ever constructed.
+    static YtaRobot * m_pThis;
+    inline void SetStaticThisInstance() { m_pThis = this; }
+    inline static YtaRobot * GetRobotInstance() { return m_pThis; }
     
     // Checks for a robot state change and logs a message if so
     inline void CheckAndUpdateRobotMode(RobotMode robotMode);
@@ -150,15 +182,8 @@ private:
     // Trims a number to be in between the upper and lower bounds
     inline double Trim( double num, double upper, double lower );
 
-    // Function to check for drive control direction swap
-    inline void CheckForDriveSwap();
-    
-    // Get a throttle control value from a joystick
-    inline double GetThrottleControl(Joystick * pJoystick);
-    inline double GetThrottleControl(YtaController * pController);
-
     // Grabs a value from a sonar sensor individually
-    inline double GetSonarSensorValue(Ultrasonic * pSensor);
+    inline double GetSonarValue(Ultrasonic * pSensor);
    
     // Get a reading from the gyro sensor
     inline double GetGyroValue(GyroType gyroType, AnalogGyro * pSensor = nullptr);
@@ -177,6 +202,7 @@ private:
     inline void AutonomousBackDriveTurn(GyroDirection currentGyroDirection);
     
     // Autonomous routines
+    // @todo: Make YtaRobotAutonomous a friend and move these out (requires accessor to *this)!
     void AutonomousRoutine1();
     void AutonomousRoutine2();
     void AutonomousRoutine3();
@@ -194,15 +220,28 @@ private:
     // Main sequence for drive motor control
     void DriveControlSequence();
     void SideDriveSequence();
+
+    // Function to check for drive control direction swap
+    inline void CheckForDriveSwap();
+    
+    // Get a throttle control value from a joystick
+    inline double GetThrottleControl(Joystick * pJoystick);
+    inline double GetThrottleControl(YtaController * pController);
     
     // Function to automate slightly moving the robot
     void DirectionalInch(double speed, EncoderDirection direction);
+    
+    // Function to automatically align the robot to a certain point
+    void DirectionalAlign();
+
+    // Main sequence for controlling the lift and arm
+    void LiftAndArmSequence();
 
     // Main sequence for LED control
     void LedSequence();
 
-    // Main sequence for updating solenoid states
-    void SolenoidSequence();
+    // Main sequence for controlling pneumatics
+    void PneumaticSequence();
 
     // Main sequence for interaction with the serial port
     void SerialPortSequence();
@@ -218,6 +257,7 @@ private:
     void TeleopTestCode();
     void MotorTest();
     void TankDrive();
+    void LedsTest();
     
     // MEMBER VARIABLES
     
@@ -238,12 +278,23 @@ private:
     // Motors
     TalonMotorGroup *               m_pLeftDriveMotors;                     // Left drive motor control
     TalonMotorGroup *               m_pRightDriveMotors;                    // Right drive motor control
+    TalonMotorGroup *               m_pLiftMotors;                          // Controls vertical movement of the main arm
+    TalonMotorGroup *               m_pArmRotationMotors;                   // Controls rotation of the main arm
+    TalonSRX *                      m_pIntakeMotor;                         // Controls intake of the ball
+    TalonSRX *                      m_pJackStandMotor;                      // Controls the jack stand mechanism
     
     // Spike Relays
-    Relay *                         m_pLedRelay;                            // Controls whether or not the LEDs are lit up
+    Relay *                         m_pLedsEnableRelay;                     // Controls whether the LEDs will light up at all
+    Relay *                         m_pRedLedRelay;                         // Controls whether or not the red LEDs are lit up
+    Relay *                         m_pGreenLedRelay;                       // Controls whether or not the green LEDs are lit up
+    Relay *                         m_pBlueLedRelay;                        // Controls whether or not the blue LEDs are lit up
     
     // Digital I/O
-    // (none)
+    DigitalInput *                  m_pArmRotationLimitSwitch;              // Tracks when the arm is all the way up (vertical)
+    DigitalInput *                  m_pLiftBottomLimitSwitch;               // Tracks when the carriage is back all the way down
+    DigitalInput *                  m_pLiftTopLimitSwitch;                  // Tracks when the carriage has traveled all the way up
+    DigitalInput *                  m_pCenterStageLimitSwitch;              // Tracks when the center stage has fully extended
+    DigitalOutput *                 m_pDebugOutput;
     
     // Analog I/O
     // (none)
@@ -251,7 +302,11 @@ private:
     // Solenoids
     // Note: No compressor related objects required,
     // instantiating a solenoid gets that for us.
-    // (none)
+    DoubleSolenoid *                m_pHatchSolenoid;
+    DoubleSolenoid *                m_pJackFrontSolenoid;
+    DoubleSolenoid *                m_pJackBackSolenoid;
+    TriggerChangeValues *           m_pJackFrontTrigger;
+    TriggerChangeValues *           m_pJackBackTrigger;
     
     // Servos
     // (none)
@@ -262,7 +317,7 @@ private:
     // Timers
     Timer *                         m_pAutonomousTimer;                     // Time things during autonomous
     Timer *                         m_pInchingDriveTimer;                   // Keep track of an inching drive operation
-    Timer *                         m_pCameraRunTimer;                      // Keep track of how often to do camera intense code runs
+    Timer *                         m_pDirectionalAlignTimer;               // Keep track of a directional align operation
     Timer *                         m_pSafetyTimer;                         // Fail safe in case critical operations don't complete
     
     // Accelerometer
@@ -296,9 +351,9 @@ private:
     
     // Misc
     RobotMode                       m_RobotMode;                            // Keep track of the current robot state
+    DriveState                      m_RobotDriveState;                      // Keep track of how the drive sequence flows
     Alliance                        m_AllianceColor;                        // Color reported by driver station during a match
     bool                            m_bDriveSwap;                           // Allow the user to push a button to change forward/reverse
-    bool                            m_bLed;                                 // Keep track of turning an LED on/off
     
     // CONSTS
     
@@ -310,34 +365,60 @@ private:
     static const int                CONTROL_JOYSTICK_PORT                   = 1;
 
     // Driver buttons
-    static const int                CAMERA_TOGGLE_FULL_PROCESSING_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 11 :  7;
-    static const int                CAMERA_TOGGLE_PROCESSED_IMAGE_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 12 :  8;
-    static const int                SELECT_FRONT_CAMERA_BUTTON              = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 13 :  9;
-    static const int                SELECT_BACK_CAMERA_BUTTON               = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 : 10;
-    static const int                DRIVE_CONTROLS_FORWARD_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 15 : 11;
-    static const int                DRIVE_CONTROLS_REVERSE_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 16 : 12;
+    static const int                DRIVE_SLOW_X_AXIS                       = YtaController::RawAxes::RIGHT_X_AXIS;
+    static const int                DRIVE_SLOW_Y_AXIS                       = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                DRIVE_HATCH_BUTTON                      = YtaController::RawButtons::RT;
+    static const int                JACK_FRONT_TOGGLE_BUTTON                = YtaController::RawButtons::START;
+    static const int                JACK_BACK_TOGGLE_BUTTON                 = YtaController::RawButtons::SELECT;
+    static const int                CAMERA_TOGGLE_FULL_PROCESSING_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 11 : YtaController::RawButtons::SELECT;
+    static const int                CAMERA_TOGGLE_PROCESSED_IMAGE_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 12 : YtaController::RawButtons::START;
+    static const int                SELECT_FRONT_CAMERA_BUTTON              = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 13 : YtaController::RawButtons::LEFT_STICK_CLICK;
+    static const int                SELECT_BACK_CAMERA_BUTTON               = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 : YtaController::RawButtons::RIGHT_STICK_CLICK;
+    static const int                DRIVE_CONTROLS_FORWARD_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 15 : YtaController::RawButtons::NO_BUTTON;
+    static const int                DRIVE_CONTROLS_REVERSE_BUTTON           = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 16 : YtaController::RawButtons::NO_BUTTON;
     
     // Control buttons
-    static const int                ESTOP_BUTTON                            = (CONTROL_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 :  8;
+    static const int                MOVE_LIFT_AXIS                          = YtaController::RawAxes::LEFT_Y_AXIS;
+    static const int                ROTATE_ARM_AXIS                         = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                CONTROL_HATCH_BUTTON                    = YtaController::RawButtons::RT;
+    static const int                INTAKE_SPIN_IN_BUTTON                   = YtaController::RawButtons::LT;
+    static const int                INTAKE_SPIN_OUT_AXIS                    = YtaController::RawAxes::LEFT_TRIGGER;
+    static const int                ESTOP_BUTTON                            = (CONTROL_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 :  YtaController::RawButtons::START;
 
     // CAN Signals
     static const int                LEFT_MOTORS_CAN_START_ID                = 1;
     static const int                RIGHT_MOTORS_CAN_START_ID               = 4;
+    static const int                LIFT_MOTORS_CAN_START_ID                = 7;
+    static const int                JACK_STAND_MOTOR_CAN_ID                 = 9;
+    static const int                ARM_ROTATION_MOTORS_CAN_START_ID        = 10;
+    static const int                INTAKE_MOTOR_CAN_ID                     = 12;
 
     // PWM Signals
     // (none)
     
     // Relays
-    static const int                LED_RELAY_ID                            = 3;
+    static const int                LEDS_ENABLE_RELAY_ID                    = 0;
+    static const int                RED_LED_RELAY_ID                        = 1;
+    static const int                GREEN_LED_RELAY_ID                      = 2;
+    static const int                BLUE_LED_RELAY_ID                       = 3;
     
     // Digital I/O Signals
-    // (none)
+    static const int                ARM_ROTATION_LIMIT_SWITCH_DIO_CHANNEL   = 0;
+    static const int                LIFT_BOTTOM_LIMIT_SWITCH_DIO_CHANNEL    = 1;
+    static const int                LIFT_TOP_LIMIT_SWITCH_DIO_CHANNEL       = 2;
+    static const int                CENTER_STAGE_LIMIT_SWITCH_DIO_CHANNEL   = 3;
+    static const int                DEBUG_OUTPUT_DIO_CHANNEL                = 7;
     
     // Analog I/O Signals
     // (none)
     
     // Solenoid Signals
-    // (none)
+    static const int                HATCH_SOLENOID_FORWARD_CHANNEL          = 0;
+    static const int                HATCH_SOLENOID_REVERSE_CHANNEL          = 1;
+    static const int                JACK_FRONT_SOLENOID_FORWARD_CHANNEL     = 2;
+    static const int                JACK_FRONT_SOLENOID_REVERSE_CHANNEL     = 3;
+    static const int                JACK_BACK_SOLENOID_FORWARD_CHANNEL      = 4;
+    static const int                JACK_BACK_SOLENOID_REVERSE_CHANNEL      = 5;
     
     // Misc
     const std::string               AUTO_ROUTINE_1_STRING                   = "Autonomous Routine 1";
@@ -350,6 +431,11 @@ private:
     static const int                SINGLE_MOTOR                            = 1;
     static const int                NUMBER_OF_LEFT_DRIVE_MOTORS             = 3;
     static const int                NUMBER_OF_RIGHT_DRIVE_MOTORS            = 3;
+    static const int                NUMBER_OF_LIFT_MOTORS                   = 2;
+    static const int                NUMBER_OF_ARM_ROTATION_MOTORS           = 2;
+    static const int                ANGLE_90_DEGREES                        = 90;
+    static const int                ANGLE_180_DEGREES                       = 180;
+    static const int                ANGLE_360_DEGREES                       = 360;
     static const int                POV_INPUT_TOLERANCE_VALUE               = 30;
     static const int                SCALE_TO_PERCENT                        = 100;
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
@@ -357,26 +443,40 @@ private:
     
     static const bool               ADXRS450_GYRO_PRESENT                   = false;
     
-    static const unsigned           I2C_RUN_INTERVAL_MS                     = 500U;
+    static const unsigned           CAMERA_RUN_INTERVAL_MS                  = 1000U;
+    static const unsigned           I2C_RUN_INTERVAL_MS                     = 240U;
     
+    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.75;
+    static constexpr double         INTAKE_MOTOR_SPEED                      =  0.70;
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
     static constexpr double         CONTROL_THROTTLE_VALUE_RANGE            =  0.65;
     static constexpr double         CONTROL_THROTTLE_VALUE_BASE             =  0.35;
     static constexpr double         DRIVE_THROTTLE_VALUE_RANGE              =  0.65;
     static constexpr double         DRIVE_THROTTLE_VALUE_BASE               =  0.35;
+    static constexpr double         DRIVE_SLOW_THROTTLE_VALUE               =  0.35;
     static constexpr double         DRIVE_MOTOR_UPPER_LIMIT                 =  1.00;
     static constexpr double         DRIVE_MOTOR_LOWER_LIMIT                 = -1.00;
     static constexpr double         DRIVE_WHEEL_DIAMETER_INCHES             =  4.00;
     static constexpr double         INCHING_DRIVE_SPEED                     =  0.25;
     static constexpr double         INCHING_DRIVE_DELAY_S                   =  0.10;
+    static constexpr double         DIRECTIONAL_ALIGN_DRIVE_SPEED           =  0.55;
+    static constexpr double         DIRECTIONAL_ALIGN_MAX_TIME_S            =  3.00;
     
-    static constexpr double         CAMERA_RUN_INTERVAL_S                   =  1.00;
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
     
-    static const int                SONAR_LED_WARN_DIST_INCHES              = 3;
-    static const uint32_t           SONAR_DRIVE_STATE_SIDE_MASK             = 0x0F;
-    static const uint32_t           SONAR_DRIVE_STATE_LATERAL_MASK          = 0xF0;
+    // This may seem backward, but the LEDS work by creating
+    // a voltage differential.  The LED strip has four lines,
+    // 12V, red, green and blue.  The 12V line gets enabled by
+    // one relay during initialization.  The RGB LEDs turn on
+    // when there is a voltage differential, so 'on' is when
+    // there is 0V on a RGB line (kOff) and 'off' is when there
+    // is 12V on a RGB line (kForward).
+    
+    static const Relay::Value       LEDS_ENABLED                            = Relay::kForward;
+    static const Relay::Value       LEDS_DISABLED                           = Relay::kOff;
+    static const Relay::Value       LEDS_OFF                                = Relay::kForward;
+    static const Relay::Value       LEDS_ON                                 = Relay::kOff;
     
 };  // End class
 
@@ -521,7 +621,7 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
 
 
 ////////////////////////////////////////////////////////////////
-/// @method YtaRobot::GetSonarSensorValue
+/// @method YtaRobot::GetSonarValue
 ///
 /// This method is used to get a value from the sonar sensor.
 /// It is intended to be used to turn a sensor briefly on and
@@ -529,7 +629,7 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
 /// sensors that may need to get readings.
 ///
 ////////////////////////////////////////////////////////////////
-inline double YtaRobot::GetSonarSensorValue(Ultrasonic * pSensor)
+inline double YtaRobot::GetSonarValue(Ultrasonic * pSensor)
 {
     return 0.0;
     
@@ -620,7 +720,7 @@ inline double YtaRobot::Trim( double num, double upper, double lower )
 {
     if ( (num < upper) && (num > lower) )
     {
-        return 0;
+        return 0.0;
     }
     
     return num;
@@ -648,6 +748,13 @@ inline double YtaRobot::Trim( double num, double upper, double lower )
 ////////////////////////////////////////////////////////////////
 inline bool YtaRobot::TriggerChangeValues::DetectChange()
 {
+    // @todo: Remove nullptr check once this is validated
+    // First read the latest value from the joystick
+    if (m_pJoystick != nullptr)
+    {
+        this->m_bCurrentValue = m_pJoystick->GetRawButton(m_ButtonNumber);
+    }
+    
     // Only report a change if the current value is different than the old value
     // Also make sure the transition is to being pressed since we are detecting
     // presses and not releases
