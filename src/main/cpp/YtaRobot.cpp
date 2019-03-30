@@ -308,7 +308,7 @@ void YtaRobot::TeleopPeriodic()
 
     //SerialPortSequence();
     
-    //I2cSequence();
+    I2cSequence();
     
     //CameraSequence();
 }
@@ -523,18 +523,17 @@ void YtaRobot::SerialPortSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::I2cSequence()
 {
-    /*
     static std::chrono::time_point<std::chrono::high_resolution_clock> currentTime;
     static std::chrono::time_point<std::chrono::high_resolution_clock> oldTime;
     currentTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = currentTime - oldTime;
-    if (elapsed.count() > 1000)
+    if (elapsed.count() > I2C_RUN_INTERVAL_MS)
     {
-        double angle = GetGyroValue(BNO055);
-        RobotUtils::DisplayFormattedMessage("BNO055: %f\n", angle);
+        RobotI2c::ManualTrigger();
+        //static_cast<void>(GetGyroValue(BNO055));
+        
         oldTime = currentTime;
     }
-    */
 }
 
 

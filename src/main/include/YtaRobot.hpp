@@ -444,7 +444,7 @@ private:
     static const bool               ADXRS450_GYRO_PRESENT                   = false;
     
     static const unsigned           CAMERA_RUN_INTERVAL_MS                  = 1000U;
-    static const unsigned           I2C_RUN_INTERVAL_MS                     = 500U;
+    static const unsigned           I2C_RUN_INTERVAL_MS                     = 240U;
     
     static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.75;
     static constexpr double         INTAKE_MOTOR_SPEED                      =  0.70;
