@@ -145,6 +145,11 @@ void YtaRioduino::Initialize()
   pinMode(DEBUG_BLUE_LED_PIN, OUTPUT);
   pinMode(DEBUG_GREEN_LED_PIN, OUTPUT);
   
+  // Indicate initialization is occurring
+  digitalWrite(HEALTH_LED_PIN, HIGH);
+  digitalWrite(DEBUG_BLUE_LED_PIN, HIGH);
+  digitalWrite(DEBUG_GREEN_LED_PIN, HIGH);
+  
   // Configure communication pins
   pinMode(ROBORIO_SIGNAL_PIN, INPUT);
   pinMode(RIODUINO_SIGNAL_PIN, OUTPUT);
@@ -172,6 +177,11 @@ void YtaRioduino::Initialize()
   }
   
   m_Bno055.setExtCrystalUse(true);
+  
+  // Initialization complete, turn visual indication off
+  digitalWrite(HEALTH_LED_PIN, LOW);
+  digitalWrite(DEBUG_BLUE_LED_PIN, LOW);
+  digitalWrite(DEBUG_GREEN_LED_PIN, LOW);
 }
 
 
@@ -398,7 +408,7 @@ void YtaRioduino::BuildI2cData()
     robotAngle *= -1.0;
   }
   else
-  {    
+  {
     m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_bIsNegative = false;
   }
   
@@ -466,15 +476,28 @@ void YtaRioduino::GetGyroData()
   m_RobotAngle = m_RobotRelativeAngle;
   
   // Update the LED debug outputs
-  if (m_RobotAngle < 0.0)
+  static bool bDebugLedPulseOn = true;
+  if (bDebugLedPulseOn)
   {
-    digitalWrite(DEBUG_BLUE_LED_PIN, HIGH);
-    digitalWrite(DEBUG_GREEN_LED_PIN, LOW);
+    if (m_RobotAngle < 0.0)
+    {
+      digitalWrite(DEBUG_BLUE_LED_PIN, HIGH);
+      digitalWrite(DEBUG_GREEN_LED_PIN, LOW);
+    }
+    else
+    {
+      digitalWrite(DEBUG_BLUE_LED_PIN, LOW);
+      digitalWrite(DEBUG_GREEN_LED_PIN, HIGH);
+    }
+    
+    bDebugLedPulseOn = false;
   }
   else
   {
     digitalWrite(DEBUG_BLUE_LED_PIN, LOW);
-    digitalWrite(DEBUG_GREEN_LED_PIN, HIGH);
+    digitalWrite(DEBUG_GREEN_LED_PIN, LOW);
+    
+    bDebugLedPulseOn = true;
   }
   
   if (DEBUG_GYRO_READINGS)
