@@ -101,8 +101,7 @@ void YtaRobot::TeleopTestCode()
     RobotUtils::DisplayFormattedMessage("x: %f, y: %f, z: %f\n", x, y, z);
 
     // Sample code for testing the detect trigger change code
-    TriggerChangeValues testValues;
-    testValues.m_bCurrentValue = m_pControlJoystick->GetRawButton(10);
+    TriggerChangeValues testValues(m_pControlJoystick, 10);
     if ( testValues.DetectChange() )
     {
         RobotUtils::DisplayMessage("Trigger change detected!");

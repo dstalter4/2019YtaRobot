@@ -411,6 +411,7 @@ void YtaRobot::LiftAndArmSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::LedSequence()
 {
+    LedsTest();
 }
 
 
