@@ -36,12 +36,15 @@
 namespace RoborioRioduinoSharedData
 {
     // A type for the header/footer of I2C transactions
-    typedef uint16_t HeaderFooterType;
-    static const HeaderFooterType I2C_HEADER_DATA = 0x0120;
-    static const HeaderFooterType I2C_FOOTER_DATA = 0x0210;
+    typedef uint8_t HeaderFooterType;
+    static const HeaderFooterType I2C_HEADER_DATA = 120; // 0x78
+    static const HeaderFooterType I2C_FOOTER_DATA = 021; // 0x15
     
     // The roboRIO and RIOduino talk over I2C at this address
     static const int I2C_DEVICE_ADDRESS = 4U;
+    
+    // A constant indicating the max I2C transaction size that can occur
+    static const unsigned int I2C_MAX_TRANSACTION_SIZE = 16U;
     
     // There are two types of transfers:
     // 1. Commands (master to slave, i.e. roboRIO to RIOduino)
@@ -50,6 +53,11 @@ namespace RoborioRioduinoSharedData
     
     ////////////////////////////////////////////////////////////////
     /// COMMANDS
+    ///
+    /// Layout:
+    /// |   0    |    1    |  2   |  3   |      4-6          7    |
+    /// | Header | Command | arg0 | arg1 | Unused buffer | Footer |
+    ///
     ////////////////////////////////////////////////////////////////
     
     // Controls which data structure is active in a transfer
@@ -69,8 +77,8 @@ namespace RoborioRioduinoSharedData
     // Represents the I2C command that will be transferred
     struct I2cCommand
     {
-        static const uint16_t I2C_COMMAND_EXPECTED_SIZE_BYTES = 8U;
-        static const uint16_t I2C_COMMAND_BUFFER_SIZE_BYTES = I2C_COMMAND_EXPECTED_SIZE_BYTES - (2 * sizeof(HeaderFooterType)) - sizeof(I2cCommandSelection);
+        static const uint8_t I2C_COMMAND_EXPECTED_SIZE_BYTES = 8U;
+        static const uint8_t I2C_COMMAND_BUFFER_SIZE_BYTES = I2C_COMMAND_EXPECTED_SIZE_BYTES - (2 * sizeof(HeaderFooterType)) - sizeof(I2cCommandSelection);
         
         // Represents different possible ways of interpreting the data buffer
         union PACKED DataBuffer
@@ -94,10 +102,24 @@ namespace RoborioRioduinoSharedData
     
     // Make sure the overall data structure has the correct size
     static_assert(sizeof(I2cCommand) == I2cCommand::I2C_COMMAND_EXPECTED_SIZE_BYTES, "I2C command does not equal expected size.");
+    static_assert(sizeof(I2cCommand) <= I2C_MAX_TRANSACTION_SIZE, "I2C command exceeds maximum allowed size.");
     
     
     ////////////////////////////////////////////////////////////////
     /// DATA SELECTIONS
+    ///
+    /// Layout:
+    /// |   0    |     1     |       2-10      |   11   |
+    /// | Header | Selection | Response buffer | Footer |
+    ///
+    /// Sonar buffer:
+    /// |   2   |   3   |  4   |  5   |  6   |  7   |  8   |  9   |
+    /// | frntA | frntB | lftA | lftB | bckA | bckB | rgtA | rgtB |
+    ///
+    /// Gyro buffer:
+    /// |  2   |  3-4 |  5   |  6-7 |  8   | 9-10 |
+    /// | xNeg | xAng | yNeg | yAng | zNeg | zAng |
+    ///
     ////////////////////////////////////////////////////////////////
     
     // Controls which data structure is active in a transfer
@@ -127,23 +149,24 @@ namespace RoborioRioduinoSharedData
     {
         struct AxisInfo
         {
-            uint16_t m_Angle;
-            uint8_t m_bIsNegative;
+          // Using uint16_t as the roboRIO compiler is padding uint8_t
+          uint16_t m_bIsNegative;
+          uint16_t m_Angle;
         };
         
         AxisInfo m_xAxisInfo;
         AxisInfo m_yAxisInfo;
         AxisInfo m_zAxisInfo;
         
-        static const uint16_t MAX_VALID_ANGLE_VALUE = 180U;
+        static const uint16_t MAX_VALID_ANGLE_VALUE = 360U;
     };
     
     // Represents the I2C data that will be transferred
     struct I2cData
     {
-        // From debugging, it looks like I2C transactions are limited to 32 bytes
-        static const uint16_t I2C_DATA_EXPECTED_SIZE_BYTES = 32U;
-        static const uint16_t I2C_DATA_BUFFER_SIZE_BYTES = I2C_DATA_EXPECTED_SIZE_BYTES - (2 * sizeof(HeaderFooterType)) - sizeof(I2cDataSelection);
+        // From debugging, it looks like I2C transactions should be limited to low sizes
+        static const uint8_t I2C_DATA_EXPECTED_SIZE_BYTES = 16U;
+        static const uint8_t I2C_DATA_BUFFER_SIZE_BYTES = I2C_DATA_EXPECTED_SIZE_BYTES - (2 * sizeof(HeaderFooterType)) - sizeof(I2cDataSelection);
         
         // Represents different possible ways of interpreting the data buffer
         union PACKED DataBuffer
@@ -169,6 +192,7 @@ namespace RoborioRioduinoSharedData
     
     // Make sure the overall data structure has the correct size
     static_assert(sizeof(I2cData) == I2cData::I2C_DATA_EXPECTED_SIZE_BYTES, "I2C data does not equal expected size.");
+    static_assert(sizeof(I2cData) <= I2C_MAX_TRANSACTION_SIZE, "I2C data exceeds maximum allowed size.");
 }
 
 #endif // ROBORIORIODUINOSHAREDDATA_HPP
