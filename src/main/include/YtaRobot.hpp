@@ -240,8 +240,8 @@ private:
     // Main sequence for LED control
     void LedSequence();
 
-    // Main sequence for updating solenoid states
-    void SolenoidSequence();
+    // Main sequence for controlling pneumatics
+    void PneumaticSequence();
 
     // Main sequence for interaction with the serial port
     void SerialPortSequence();
@@ -303,7 +303,10 @@ private:
     // Note: No compressor related objects required,
     // instantiating a solenoid gets that for us.
     DoubleSolenoid *                m_pHatchSolenoid;
-    DoubleSolenoid *                m_pJackStandSolenoid;
+    DoubleSolenoid *                m_pJackFrontSolenoid;
+    DoubleSolenoid *                m_pJackBackSolenoid;
+    TriggerChangeValues *           m_pJackFrontTrigger;
+    TriggerChangeValues *           m_pJackBackTrigger;
     
     // Servos
     // (none)
@@ -364,6 +367,9 @@ private:
     // Driver buttons
     static const int                DRIVE_SLOW_X_AXIS                       = YtaController::RawAxes::RIGHT_X_AXIS;
     static const int                DRIVE_SLOW_Y_AXIS                       = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                DRIVE_HATCH_BUTTON                      = YtaController::RawButtons::RT;
+    static const int                JACK_FRONT_TOGGLE_BUTTON                = YtaController::RawButtons::START;
+    static const int                JACK_BACK_TOGGLE_BUTTON                 = YtaController::RawButtons::SELECT;
     static const int                CAMERA_TOGGLE_FULL_PROCESSING_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 11 : YtaController::RawButtons::SELECT;
     static const int                CAMERA_TOGGLE_PROCESSED_IMAGE_BUTTON    = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 12 : YtaController::RawButtons::START;
     static const int                SELECT_FRONT_CAMERA_BUTTON              = (DRIVE_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 13 : YtaController::RawButtons::LEFT_STICK_CLICK;
@@ -374,6 +380,7 @@ private:
     // Control buttons
     static const int                MOVE_LIFT_AXIS                          = YtaController::RawAxes::LEFT_Y_AXIS;
     static const int                ROTATE_ARM_AXIS                         = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                CONTROL_HATCH_BUTTON                    = YtaController::RawButtons::RT;
     static const int                INTAKE_SPIN_IN_BUTTON                   = YtaController::RawButtons::LT;
     static const int                INTAKE_SPIN_OUT_AXIS                    = YtaController::RawAxes::LEFT_TRIGGER;
     static const int                ESTOP_BUTTON                            = (CONTROL_CONTROLLER_TYPE == LOGITECH_EXTREME) ? 14 :  YtaController::RawButtons::START;
@@ -408,8 +415,10 @@ private:
     // Solenoid Signals
     static const int                HATCH_SOLENOID_FORWARD_CHANNEL          = 0;
     static const int                HATCH_SOLENOID_REVERSE_CHANNEL          = 1;
-    static const int                JACK_STAND_SOLENOID_FORWARD_CHANNEL     = 2;
-    static const int                JACK_STAND_SOLENOID_REVERSE_CHANNEL     = 3;
+    static const int                JACK_FRONT_SOLENOID_FORWARD_CHANNEL     = 2;
+    static const int                JACK_FRONT_SOLENOID_REVERSE_CHANNEL     = 3;
+    static const int                JACK_BACK_SOLENOID_FORWARD_CHANNEL      = 4;
+    static const int                JACK_BACK_SOLENOID_REVERSE_CHANNEL      = 5;
     
     // Misc
     const std::string               AUTO_ROUTINE_1_STRING                   = "Autonomous Routine 1";

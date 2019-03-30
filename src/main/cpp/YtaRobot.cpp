@@ -61,20 +61,25 @@ YtaRobot::YtaRobot() :
     m_pCenterStageLimitSwitch           (new DigitalInput(CENTER_STAGE_LIMIT_SWITCH_DIO_CHANNEL)),
     m_pDebugOutput                      (new DigitalOutput(DEBUG_OUTPUT_DIO_CHANNEL)),
     m_pHatchSolenoid                    (new DoubleSolenoid(HATCH_SOLENOID_FORWARD_CHANNEL, HATCH_SOLENOID_REVERSE_CHANNEL)),
-    m_pJackStandSolenoid                (new DoubleSolenoid(JACK_STAND_SOLENOID_FORWARD_CHANNEL, JACK_STAND_SOLENOID_REVERSE_CHANNEL)),
+    m_pJackFrontSolenoid                (new DoubleSolenoid(JACK_FRONT_SOLENOID_FORWARD_CHANNEL, JACK_FRONT_SOLENOID_REVERSE_CHANNEL)),
+    m_pJackBackSolenoid                 (new DoubleSolenoid(JACK_BACK_SOLENOID_FORWARD_CHANNEL, JACK_BACK_SOLENOID_REVERSE_CHANNEL)),
+    m_pJackFrontTrigger                 (nullptr),
+    m_pJackBackTrigger                  (nullptr),
     m_pAutonomousTimer                  (new Timer()),
     m_pInchingDriveTimer                (new Timer()),
+    m_pDirectionalAlignTimer            (new Timer()),
     m_pSafetyTimer                      (new Timer()),
     m_pAccelerometer                    (new BuiltInAccelerometer),
     m_pAdxrs450Gyro                     (nullptr),
     m_Bno055Angle                       (),
     m_CameraThread                      (RobotCamera::VisionThread),
-    m_pToggleFullProcessingTrigger      (new TriggerChangeValues()),
-    m_pToggleProcessedImageTrigger      (new TriggerChangeValues()),
+    m_pToggleFullProcessingTrigger      (nullptr),
+    m_pToggleProcessedImageTrigger      (nullptr),
     m_SerialPortBuffer                  (),
     m_pSerialPort                       (new SerialPort(SERIAL_PORT_BAUD_RATE, SerialPort::kMXP, SERIAL_PORT_NUM_DATA_BITS, SerialPort::kParity_None, SerialPort::kStopBits_One)),
     m_I2cThread                         (RobotI2c::I2cThread),
     m_RobotMode                         (ROBOT_MODE_NOT_SET),
+    m_RobotDriveState                   (MANUAL_CONTROL),
     m_AllianceColor                     (m_pDriverStation->GetAlliance()),
     m_bDriveSwap                        (false)
 {
@@ -231,7 +236,8 @@ void YtaRobot::InitialStateSetup()
     
     // Solenoids
     m_pHatchSolenoid->Set(DoubleSolenoid::kOff);
-    m_pJackStandSolenoid->Set(DoubleSolenoid::kOff);
+    m_pJackFrontSolenoid->Set(DoubleSolenoid::kOff);
+    m_pJackBackSolenoid->Set(DoubleSolenoid::kOff);
     
     // Enable LEDs, but keep them off for now
     m_pLedsEnableRelay->Set(LEDS_ENABLED);
@@ -292,14 +298,13 @@ void YtaRobot::TeleopPeriodic()
     // Log a mode change if one occurred
     CheckAndUpdateRobotMode(ROBOT_MODE_TELEOP);
 
-    //CheckForDriveSwap();
     DriveControlSequence();
 
     LiftAndArmSequence();
 
     //LedSequence();
 
-    //SolenoidSequence();
+    PneumaticSequence();
 
     //SerialPortSequence();
     
@@ -384,14 +389,55 @@ void YtaRobot::LedSequence()
 
 
 ////////////////////////////////////////////////////////////////
-/// @method YtaRobot::SolenoidSequence
+/// @method YtaRobot::PneumaticSequence
 ///
 /// This method contains the main workflow for updating the
-/// state of the solenoids on the robot.
+/// state of the pnemuatics on the robot.
 ///
 ////////////////////////////////////////////////////////////////
-void YtaRobot::SolenoidSequence()
+void YtaRobot::PneumaticSequence()
 {
+    // Front jack stand control
+    static bool bJackFrontRaised = false;
+    if (m_pJackFrontTrigger->DetectChange())
+    {
+        if (!bJackFrontRaised)
+        {
+            m_pJackFrontSolenoid->Set(DoubleSolenoid::kForward);
+        }
+        else
+        {
+            m_pJackFrontSolenoid->Set(DoubleSolenoid::kReverse);
+        }
+
+        bJackFrontRaised = !bJackFrontRaised;
+    }
+    
+    // Back jack stand control
+    static bool bJackBackRaised = false;
+    if (m_pJackBackTrigger->DetectChange())
+    {
+        if (!bJackBackRaised)
+        {
+            m_pJackBackSolenoid->Set(DoubleSolenoid::kForward);
+        }
+        else
+        {
+            m_pJackBackSolenoid->Set(DoubleSolenoid::kReverse);
+        }
+
+        bJackBackRaised = !bJackBackRaised;
+    }
+    
+    // Hatch solenoid control
+    if ((m_pDriveJoystick->GetRawButton(DRIVE_HATCH_BUTTON)) || (m_pControlJoystick->GetRawButton(CONTROL_HATCH_BUTTON)))
+    {
+        m_pHatchSolenoid->Set(DoubleSolenoid::kForward);
+    }
+    else
+    {
+        m_pHatchSolenoid->Set(DoubleSolenoid::kReverse);
+    }
 }
 
 
