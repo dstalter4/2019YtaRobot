@@ -331,11 +331,38 @@ void YtaRobot::LiftAndArmSequence()
     // Joystick input maps to -1 up, +1 down
     double liftMotorValue = Trim(-m_pControlJoystick->GetRawAxis(MOVE_LIFT_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT);
     
-    // Make sure the lift/carriage are not fully extended
-    if ((liftMotorValue > 0.0) && (!m_pCenterStageLimitSwitch->Get()) && (!m_pLiftTopLimitSwitch->Get()))
+    static bool bLiftUpTravelAllowed = true;
+    
+    // There are extra controls when the lift is moving up
+    if (liftMotorValue > 0.0)
     {
-        // Upward motion not allowed, downward only
-        liftMotorValue = 0.0;
+        // Check if the limit switches are set
+        if ((!m_pCenterStageLimitSwitch->Get()) && (!m_pLiftTopLimitSwitch->Get()))
+        {
+            // The carriage may overrun its limit switch.
+            // If both switches were ever seen set together,
+            // indicate that upward motion is not allowed
+            // until there is manual input to go back down.
+            bLiftUpTravelAllowed = false;
+            
+            // Upward motion not allowed, downward only
+            liftMotorValue = 0.0;
+        }
+        else if (!bLiftUpTravelAllowed)
+        {
+            // Execution reaches here if there is still an
+            // input to go up, but the limit switch was overshot.
+            liftMotorValue = 0.0;
+        }
+        else
+        {
+            // Not at the limit, normal motor control
+        }
+    }
+    else
+    {
+        // Going down or motor off
+        bLiftUpTravelAllowed = true;
     }
     
     m_pLiftMotors->Set(-liftMotorValue);
