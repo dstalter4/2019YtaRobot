@@ -141,6 +141,13 @@ YtaRobot::YtaRobot() :
         }
     }
     
+    // @todo: Figure out how to assign these sooner to a valid joystick.
+    // Since the triggers use a joystick object, they can't be created until the joysticks are assigned
+    m_pJackFrontTrigger             = new TriggerChangeValues(m_pDriveJoystick, JACK_FRONT_TOGGLE_BUTTON);
+    m_pJackBackTrigger              = new TriggerChangeValues(m_pDriveJoystick, JACK_BACK_TOGGLE_BUTTON);
+    m_pToggleFullProcessingTrigger  = new TriggerChangeValues(m_pDriveJoystick, CAMERA_TOGGLE_FULL_PROCESSING_BUTTON);
+    m_pToggleProcessedImageTrigger  = new TriggerChangeValues(m_pDriveJoystick, CAMERA_TOGGLE_PROCESSED_IMAGE_BUTTON);
+    
     // Construct the ADXRS450 gyro if configured
     if (ADXRS450_GYRO_PRESENT)
     {
@@ -235,6 +242,8 @@ void YtaRobot::InitialStateSetup()
     // Stop/clear any timers, just in case
     m_pInchingDriveTimer->Stop();
     m_pInchingDriveTimer->Reset();
+    m_pDirectionalAlignTimer->Stop();
+    m_pDirectionalAlignTimer->Reset();
     m_pSafetyTimer->Stop();
     m_pSafetyTimer->Reset();
     
@@ -483,7 +492,6 @@ void YtaRobot::CameraSequence()
     }
     
     // Look for full processing to be enabled/disabled
-    m_pToggleFullProcessingTrigger->m_bCurrentValue = m_pDriveJoystick->GetRawButton(CAMERA_TOGGLE_FULL_PROCESSING_BUTTON);
     if (m_pToggleFullProcessingTrigger->DetectChange())
     {
         // Change state first, because the default is set before this code runs
@@ -492,7 +500,6 @@ void YtaRobot::CameraSequence()
     }
     
     // Look for the displayed processed image to be changed
-    m_pToggleProcessedImageTrigger->m_bCurrentValue = m_pDriveJoystick->GetRawButton(CAMERA_TOGGLE_PROCESSED_IMAGE_BUTTON);
     if (m_pToggleProcessedImageTrigger->DetectChange())
     {
         RobotCamera::ToggleCameraProcessedImage();
@@ -513,6 +520,17 @@ void YtaRobot::CameraSequence()
 ////////////////////////////////////////////////////////////////
 void YtaRobot::DriveControlSequence()
 {
+    // Check for a directional align first
+    DirectionalAlign();
+    
+    // If an align is in progress, do not accept manual driver input
+    if (m_RobotDriveState == DIRECTIONAL_ALIGN)
+    {
+        return;
+    }
+
+    //CheckForDriveSwap();
+    
     // Computes what the maximum drive speed could be.
     // It's a little unfortunate we have to handle throttle this way,
     // but GetThrottle is not a member of the GenericHID base class,
@@ -668,6 +686,215 @@ void YtaRobot::DirectionalInch(double speed, EncoderDirection direction)
     // Stop the timer
     m_pInchingDriveTimer->Stop();
     m_pInchingDriveTimer->Reset();
+}
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method YtaRobot::DirectionalAlign
+///
+/// This method contains the main workflow for automatically
+/// aligning the robot to an angle based on input from the
+/// driver.  The angles are relative to the robot at the start
+/// of the match (when power is applied to the gyro and zero
+/// is set).  The robot angle is reported as follows:
+///
+///     0
+///     |
+/// 270---90
+///     |
+///    180
+///
+/// The POV input is used to pick the angle to align to.  The
+/// corresponding input on the d-pad maps 1:1 to the drawing.
+///
+////////////////////////////////////////////////////////////////
+void YtaRobot::DirectionalAlign()
+{
+    // Retain the last POV value between function invocations
+    static int lastPovValue = -1;
+    
+    // Indicate whether or not a change between align/no align is allowed
+    static bool bStateChangeAllowed = false;
+    
+    // Get the current POV value
+    int povValue = m_pDriveJoystick->GetPOV();
+    
+    // Check if it changed since last function call
+    if (povValue != lastPovValue)
+    {
+        // Something changed, figure out what
+        
+        // POV button was released
+        if (povValue == -1)
+        {
+            // State change not allowed until next button press
+            bStateChangeAllowed = false;
+        }
+        // POV button was pressed
+        else if (lastPovValue == -1)
+        {
+            // State change allowed since button is now pressed
+            bStateChangeAllowed = true;
+        }
+        // There was some change in the already pressed POV value, which doesn't matter
+        else
+        {
+        }
+    }
+    
+    const int POV_NORMALIZATION_ANGLE = 45;
+    
+    // Save off a new last POV value
+    lastPovValue = povValue;
+    
+    // This alignment uses the following from the POV input:
+    //
+    // ///////////////////////
+    // //   315      45     //
+    // //     \  up  /      //
+    // // left |    | right //
+    // //     / down \      //
+    // //   225      135    //
+    // ///////////////////////
+    //
+    // The input value (0 -> 360) will be normalized such that
+    // angle 315 is interpreted as zero.
+    static int destinationAngle = -1;
+    
+    switch (m_RobotDriveState)
+    {
+        case MANUAL_CONTROL:
+        {
+            // Only start an align if a state change is allowed
+            if (bStateChangeAllowed)
+            {                
+                // This gives a value between 45 -> 405
+                povValue += POV_NORMALIZATION_ANGLE;
+                
+                // Normalize between 0 -> 360 (maps 0:360 in to 45:360:0:45 out)
+                if (povValue >= ANGLE_360_DEGREES)
+                {
+                    povValue -= ANGLE_360_DEGREES;
+                }
+                
+                // Now at value between 0 -> 360, where:
+                // 0 -> 89 = align up
+                // 90 -> 179 = align right
+                // 180 -> 269 = align down
+                // 270 -> 359 = align left
+                // Get a scalar multiplier to find the destination angle.
+                // Making this volatile to prevent the compiler from trying
+                // to optimize the division followed by multliplication of
+                // the same constant.  Integer division is deliberate.
+                // This gives a scalar multiplier of 0 -> 3
+                volatile int degreeMultiplier = (povValue / ANGLE_90_DEGREES);
+                
+                // Find the destination angle.
+                // This gives a value of 0, 90, 180 or 270
+                destinationAngle = ANGLE_90_DEGREES * degreeMultiplier;
+                
+                // Read the starting angle
+                RobotI2c::ManualTrigger();
+                int startingAngle = static_cast<int>(GetGyroValue(BNO055));
+                
+                // Do some angle math to figure out which direction is faster to turn.
+                // Examples:
+                // Starting: 45, 180    Destination: 0, 90, 180, 270
+                // 45 - 0 = 45          180 - 0 = 180
+                // 45 - 90 = -45        180 - 90 = 90
+                // 45 - 180 = -135      180 - 180 = 0
+                // 45 - 270 = -225      180 - 270 = -90
+                int angleDistance = startingAngle - destinationAngle;
+                int absValueAngleDistance = std::abs(angleDistance);
+                
+                // Variables to indicate which way to turn
+                bool bTurnLeft = false;
+                bool bTurnRight = false;
+                
+                // Figure out which way to turn
+                if (angleDistance > 0)
+                {
+                    // Target is to the left of where we are
+                    bTurnLeft = true;
+                }
+                else
+                {
+                    // Target is to the right of where we are
+                    bTurnRight = true;
+                }
+
+                // If the target distance is more than halfway around, it's actually faster to turn the other way 
+                if (absValueAngleDistance > ANGLE_180_DEGREES)
+                {
+                    bTurnLeft = !bTurnLeft;
+                    bTurnRight = !bTurnRight;
+                }
+                
+                // The destination angle and direction is now known, time to do the move
+                if (bTurnLeft)
+                {
+                    m_pLeftDriveMotors->Set(-DIRECTIONAL_ALIGN_DRIVE_SPEED);
+                    m_pRightDriveMotors->Set(-DIRECTIONAL_ALIGN_DRIVE_SPEED);
+                }
+                if (bTurnRight)
+                {
+                    m_pLeftDriveMotors->Set(DIRECTIONAL_ALIGN_DRIVE_SPEED);
+                    m_pRightDriveMotors->Set(DIRECTIONAL_ALIGN_DRIVE_SPEED);
+                }
+                
+                // Start the safety timer
+                m_pDirectionalAlignTimer->Start();
+
+                // Indicate a state change is not allowed until POV release
+                bStateChangeAllowed = false;
+                
+                // Indicate a directional align is in process
+                m_RobotDriveState = DIRECTIONAL_ALIGN;
+            }
+            
+            break;
+        }
+        case DIRECTIONAL_ALIGN:
+        {   
+            // Force update gyro value
+            RobotI2c::ManualTrigger();
+            
+            // Three conditions for stopping the align:
+            // 1. Destination angle is reached
+            // 2. Safety timer expires
+            // 3. User cancels the operation
+            // @todo: Is it a problem that (destinationAngle - 1) can be negative when angle == zero?
+            int currentAngle = static_cast<int>(GetGyroValue(BNO055));
+            if (((currentAngle >= (destinationAngle - 1)) && (currentAngle <= (destinationAngle + 1))) ||
+                (m_pDirectionalAlignTimer->Get() > DIRECTIONAL_ALIGN_MAX_TIME_S) ||
+                (bStateChangeAllowed))
+            {
+                // Motors off
+                m_pLeftDriveMotors->Set(OFF);
+                m_pRightDriveMotors->Set(OFF);
+                
+                // Reset the safety timer
+                m_pDirectionalAlignTimer->Stop();
+                m_pDirectionalAlignTimer->Reset();
+                
+                // Clear this just to be safe
+                destinationAngle = -1;
+                
+                // Indicate a state change is not allowed until POV release
+                bStateChangeAllowed = false;
+                
+                // Align done, back to manual control
+                m_RobotDriveState = MANUAL_CONTROL;
+            }
+            
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
 }
 
 

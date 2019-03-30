@@ -17,6 +17,7 @@
 
 // SYSTEM INCLUDES
 #include <cmath>                                // for M_PI
+#include <thread>                               // for std::thread
 
 // C INCLUDES
 #include "frc/WPILib.h"                         // for FRC library
@@ -94,6 +95,13 @@ private:
         XBOX_GAMESIR
     };
     
+    enum DriveState
+    {
+        MANUAL_CONTROL,
+        DIRECTIONAL_INCH,
+        DIRECTIONAL_ALIGN
+    };
+    
     enum EncoderDirection
     {
         FORWARD,
@@ -134,9 +142,22 @@ private:
     // STRUCTS
     struct TriggerChangeValues
     {
+    public:
+        // Constructor
+        TriggerChangeValues(GenericHID * rpJoystick, int button) :
+            m_pJoystick(rpJoystick),
+            m_ButtonNumber(button),
+            m_bCurrentValue(false),
+            m_bOldValue(false)
+        {
+        }
+        
         // Detect that a button has been pressed (rather than released)
         inline bool DetectChange();
         
+    private:
+        GenericHID * m_pJoystick;
+        int m_ButtonNumber;
         bool m_bCurrentValue;
         bool m_bOldValue;
     };
@@ -160,13 +181,6 @@ private:
     
     // Trims a number to be in between the upper and lower bounds
     inline double Trim( double num, double upper, double lower );
-
-    // Function to check for drive control direction swap
-    inline void CheckForDriveSwap();
-    
-    // Get a throttle control value from a joystick
-    inline double GetThrottleControl(Joystick * pJoystick);
-    inline double GetThrottleControl(YtaController * pController);
 
     // Grabs a value from a sonar sensor individually
     inline double GetSonarValue(Ultrasonic * pSensor);
@@ -206,9 +220,19 @@ private:
     // Main sequence for drive motor control
     void DriveControlSequence();
     void SideDriveSequence();
+
+    // Function to check for drive control direction swap
+    inline void CheckForDriveSwap();
+    
+    // Get a throttle control value from a joystick
+    inline double GetThrottleControl(Joystick * pJoystick);
+    inline double GetThrottleControl(YtaController * pController);
     
     // Function to automate slightly moving the robot
     void DirectionalInch(double speed, EncoderDirection direction);
+    
+    // Function to automatically align the robot to a certain point
+    void DirectionalAlign();
 
     // Main sequence for controlling the lift and arm
     void LiftAndArmSequence();
@@ -290,6 +314,7 @@ private:
     // Timers
     Timer *                         m_pAutonomousTimer;                     // Time things during autonomous
     Timer *                         m_pInchingDriveTimer;                   // Keep track of an inching drive operation
+    Timer *                         m_pDirectionalAlignTimer;               // Keep track of a directional align operation
     Timer *                         m_pSafetyTimer;                         // Fail safe in case critical operations don't complete
     
     // Accelerometer
@@ -323,6 +348,7 @@ private:
     
     // Misc
     RobotMode                       m_RobotMode;                            // Keep track of the current robot state
+    DriveState                      m_RobotDriveState;                      // Keep track of how the drive sequence flows
     Alliance                        m_AllianceColor;                        // Color reported by driver station during a match
     bool                            m_bDriveSwap;                           // Allow the user to push a button to change forward/reverse
     
@@ -398,6 +424,9 @@ private:
     static const int                NUMBER_OF_RIGHT_DRIVE_MOTORS            = 3;
     static const int                NUMBER_OF_LIFT_MOTORS                   = 2;
     static const int                NUMBER_OF_ARM_ROTATION_MOTORS           = 2;
+    static const int                ANGLE_90_DEGREES                        = 90;
+    static const int                ANGLE_180_DEGREES                       = 180;
+    static const int                ANGLE_360_DEGREES                       = 360;
     static const int                POV_INPUT_TOLERANCE_VALUE               = 30;
     static const int                SCALE_TO_PERCENT                        = 100;
     static const int                QUADRATURE_ENCODING_ROTATIONS           = 4096;
@@ -422,6 +451,8 @@ private:
     static constexpr double         DRIVE_WHEEL_DIAMETER_INCHES             =  4.00;
     static constexpr double         INCHING_DRIVE_SPEED                     =  0.25;
     static constexpr double         INCHING_DRIVE_DELAY_S                   =  0.10;
+    static constexpr double         DIRECTIONAL_ALIGN_DRIVE_SPEED           =  0.55;
+    static constexpr double         DIRECTIONAL_ALIGN_MAX_TIME_S            =  3.00;
     
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
     
@@ -708,6 +739,13 @@ inline double YtaRobot::Trim( double num, double upper, double lower )
 ////////////////////////////////////////////////////////////////
 inline bool YtaRobot::TriggerChangeValues::DetectChange()
 {
+    // @todo: Remove nullptr check once this is validated
+    // First read the latest value from the joystick
+    if (m_pJoystick != nullptr)
+    {
+        this->m_bCurrentValue = m_pJoystick->GetRawButton(m_ButtonNumber);
+    }
+    
     // Only report a change if the current value is different than the old value
     // Also make sure the transition is to being pressed since we are detecting
     // presses and not releases
