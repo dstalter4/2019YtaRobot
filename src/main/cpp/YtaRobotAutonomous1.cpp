@@ -29,6 +29,12 @@
 ////////////////////////////////////////////////////////////////
 void YtaRobot::AutonomousRoutine1()
 {
+    while ( m_pDriverStation->IsAutonomous() && m_pDriverStation->IsEnabled() )
+    {
+        DriveControlSequence();
+        LiftAndArmSequence();
+    }
+    
     // Returning from here will enter the idle state until autonomous is over
     RobotUtils::DisplayMessage("Auto routine 1 done.");
 }
