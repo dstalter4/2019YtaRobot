@@ -149,6 +149,7 @@ void RobotCamera::VisionThread()
 {
     // Indicate the thread has been started
     RobotUtils::DisplayMessage("Vision thread detached.");
+    while (true) {}
     
     // Clear the memory used for the camera storage
     std::memset(&m_UsbCameras, 0U, sizeof(UsbCameraStorage));
