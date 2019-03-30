@@ -62,6 +62,7 @@ private:
     {
         TRIGGER_INTERRUPT,
         COLLECT_DATA,
+        SEND_COMMAND,
         DELAY
     };
     
@@ -97,10 +98,12 @@ private:
     static I2cData          m_I2cRioduinoData;
     static I2C              m_I2cRioduino;
     static bool             m_bI2cDataValid;
+    static bool             m_bI2cCommandReady;
     
     // Thread configuration
     static ThreadPhase      m_ThreadPhase;
     static unsigned int     m_ThreadUpdateRateMs;
+    //std::lock_guard<wpi::mutex> lock(digitalI2CMXPMutex);
     
     // Counters
     static unsigned int     m_NumValidTransactions;
@@ -110,8 +113,8 @@ private:
     static const int        RIODUINO_SIGNAL_DIO_PIN = 9;
     static const uint8_t    I2C_BUFFER_MARKER       = 0xAA;
     static const bool       DEBUG_I2C_TRANSACTIONS  = false;
-    static const unsigned   DEFAULT_UPDATE_RATE_MS  = 50U;
-    static const unsigned   INITIALIZING_DELAY_MS   = 10U;
+    static const unsigned   DEFAULT_UPDATE_RATE_MS  = 60U;
+    static const unsigned   INITIALIZING_DELAY_MS   = 20U;
 };
 
 

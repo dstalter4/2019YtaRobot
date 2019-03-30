@@ -27,6 +27,7 @@ I2cCommand              RobotI2c::m_I2cRioduinoCommand;
 I2cData                 RobotI2c::m_I2cRioduinoData;
 I2C                     RobotI2c::m_I2cRioduino(I2C::Port::kMXP, RoborioRioduinoSharedData::I2C_DEVICE_ADDRESS);
 bool                    RobotI2c::m_bI2cDataValid           = false;
+bool                    RobotI2c::m_bI2cCommandReady        = false;
 RobotI2c::ThreadPhase   RobotI2c::m_ThreadPhase             = TRIGGER_INTERRUPT;
 unsigned int            RobotI2c::m_ThreadUpdateRateMs      = DEFAULT_UPDATE_RATE_MS;
 unsigned int            RobotI2c::m_NumValidTransactions    = 0U;
@@ -79,10 +80,32 @@ void RobotI2c::I2cThread()
                 }
                 break;
             }
+            case SEND_COMMAND:
+            {
+                // Send the I2C command
+                SendI2cCommand();
+                
+                // A command is no longer ready
+                m_bI2cCommandReady = false;
+                
+                m_ThreadPhase = DELAY;
+                break;
+            }
             case DELAY:
             {
+                // Relinquish the CPU
                 std::this_thread::sleep_for(std::chrono::milliseconds(m_ThreadUpdateRateMs));
-                m_ThreadPhase = TRIGGER_INTERRUPT;
+                
+                // Check if a request to send a command came in (could be external to this thread)
+                if (m_bI2cCommandReady)
+                {
+                    m_ThreadPhase = SEND_COMMAND;
+                }
+                else
+                {
+                    m_ThreadPhase = TRIGGER_INTERRUPT;
+                }
+                
                 break;
             }
             default:
@@ -106,13 +129,13 @@ void RobotI2c::SendCommand(I2cCommandSelection command)
     // First clear the buffer
     std::memset(&m_I2cRioduinoCommand, I2C_BUFFER_MARKER, sizeof(m_I2cRioduinoCommand));
     
-    // Build the metadata
+    // Build the metadata.  
+    // This will only retain the last command that is sent, so some could be dropped.
     m_I2cRioduinoCommand.m_Header = I2C_HEADER_DATA;
     m_I2cRioduinoCommand.m_Footer = I2C_FOOTER_DATA;
-    m_I2cRioduinoCommand.m_CommandSelection = GYRO_READ_NEW_CENTER;
+    m_I2cRioduinoCommand.m_CommandSelection = command;
     
-    // Send the I2C command
-    SendI2cCommand();
+    m_bI2cCommandReady = true;
 }
 
 
