@@ -59,6 +59,9 @@ public:
     
     // The vision thread itself
     static void VisionThread();
+    
+    // Vision thread for using a limelight camera
+    static void LimelightThread();
 
 private:
     
@@ -173,6 +176,7 @@ private:
     };
     
     // Camera related variables
+    static std::shared_ptr<NetworkTable>        m_LimelightNetworkTable;            // Network table for the limelight camera
     static UsbCameraStorage                     m_UsbCameras;                       // Memory for storing the USB camera objects
     static UsbCameraInfo *                      m_pCurrentUsbCamera;                // Pointer to the currently selected USB camera object   
     static cs::CvSource                         m_CameraOutput;                     // Output source for processed images

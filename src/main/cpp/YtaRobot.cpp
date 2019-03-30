@@ -72,7 +72,7 @@ YtaRobot::YtaRobot() :
     m_pAccelerometer                    (new BuiltInAccelerometer),
     m_pAdxrs450Gyro                     (nullptr),
     m_Bno055Angle                       (),
-    m_CameraThread                      (RobotCamera::VisionThread),
+    m_CameraThread                      (RobotCamera::LimelightThread),
     m_pToggleFullProcessingTrigger      (nullptr),
     m_pToggleProcessedImageTrigger      (nullptr),
     m_SerialPortBuffer                  (),

@@ -13,12 +13,15 @@
 
 // C INCLUDES
 #include "cameraserver/CameraServer.h"          // for CameraServer instance
+#include "networktables/NetworkTable.h"         // for network tables
+#include "networktables/NetworkTableInstance.h" // for network table instance
 
 // C++ INCLUDES
 #include "RobotCamera.hpp"                      // for class declaration
 #include "RobotUtils.hpp"                       // for DisplayMessage(), DisplayFormattedMessage()
 
 // STATIC MEMBER DATA
+std::shared_ptr<NetworkTable>                   RobotCamera::m_LimelightNetworkTable;
 RobotCamera::UsbCameraStorage                   RobotCamera::m_UsbCameras;
 RobotCamera::UsbCameraInfo *                    RobotCamera::m_pCurrentUsbCamera;
 cs::CvSource                                    RobotCamera::m_CameraOutput;
@@ -97,6 +100,41 @@ bool RobotCamera::CreateConfiguredCameras()
     }
 
     return bAnyCameraPresent;
+}
+
+
+
+////////////////////////////////////////////////////////////////
+/// @method RobotCamera::LimelightThread
+///
+/// This method contains the workflow for using a limelight
+/// camera.
+///
+////////////////////////////////////////////////////////////////
+void RobotCamera::LimelightThread()
+{
+    // Indicate the thread has been started
+    RobotUtils::DisplayMessage("Limelight vision thread detached.");
+    
+    // Get the limelight network table
+    m_LimelightNetworkTable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
+    
+    // Put the limelight camera in driver mode.
+    // 0 = vision procressor, 1 = driver camera
+    m_LimelightNetworkTable->PutNumber("camMode", 1);
+    
+    while (true)
+    {
+        /*
+        // Get some information from the camera
+        double targetOffsetAngleHorizontal = m_LimelightNetworkTable->GetNumber("tx",0.0);
+        double targetOffsetAngleVertical = m_LimelightNetworkTable->GetNumber("ty",0.0);
+        double targetArea = m_LimelightNetworkTable->GetNumber("ta",0.0);
+        double targetSkew = m_LimelightNetworkTable->GetNumber("ts",0.0);
+        */
+        
+        // @todo: Send useful information to smart dashboard.
+    }
 }
 
 
