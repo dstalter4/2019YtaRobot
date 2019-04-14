@@ -570,8 +570,8 @@ inline double YtaRobot::GetGyroValue(GyroType gyroType, AnalogGyro * pSensor)
             if (m_pAdxrs450Gyro != nullptr)
             {
                 value = m_pAdxrs450Gyro->GetAngle();
-                break;
             }
+            break;
         }
         case ANALOG:
         {
