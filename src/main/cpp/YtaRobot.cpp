@@ -235,9 +235,9 @@ void YtaRobot::InitialStateSetup()
     m_pRightDriveMotors->TareEncoder();
     
     // Solenoids
-    m_pHatchSolenoid->Set(DoubleSolenoid::kOff);
-    m_pJackFrontSolenoid->Set(DoubleSolenoid::kOff);
-    m_pJackBackSolenoid->Set(DoubleSolenoid::kOff);
+    m_pHatchSolenoid->Set(DoubleSolenoid::kReverse);
+    m_pJackFrontSolenoid->Set(DoubleSolenoid::kForward);
+    m_pJackBackSolenoid->Set(DoubleSolenoid::kForward);
     
     // Enable LEDs, but keep them off for now
     m_pLedsEnableRelay->Set(LEDS_ENABLED);
@@ -442,12 +442,12 @@ void YtaRobot::LiftAndArmSequence()
     // Intake motor
     if (m_pControlJoystick->GetRawButton(INTAKE_SPIN_IN_BUTTON))
     {
-        m_pIntakeMotor->Set(ControlMode::PercentOutput, INTAKE_MOTOR_SPEED);
+        m_pIntakeMotor->Set(ControlMode::PercentOutput, INTAKE_SPIN_IN_MOTOR_SPEED);
     }
     // Control input just needs to be non-zero (not using proportional motor control on the intake)
     else if (Trim(m_pControlJoystick->GetRawAxis(INTAKE_SPIN_OUT_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT) != 0.0)
     {
-        m_pIntakeMotor->Set(ControlMode::PercentOutput, -INTAKE_MOTOR_SPEED);
+        m_pIntakeMotor->Set(ControlMode::PercentOutput, -INTAKE_SPIN_OUT_MOTOR_SPEED);
     }
     else
     {
@@ -486,11 +486,11 @@ void YtaRobot::PneumaticSequence()
     {
         if (!bJackFrontRaised)
         {
-            m_pJackFrontSolenoid->Set(DoubleSolenoid::kForward);
+            m_pJackFrontSolenoid->Set(DoubleSolenoid::kReverse);
         }
         else
         {
-            m_pJackFrontSolenoid->Set(DoubleSolenoid::kReverse);
+            m_pJackFrontSolenoid->Set(DoubleSolenoid::kForward);
         }
 
         bJackFrontRaised = !bJackFrontRaised;
@@ -502,11 +502,11 @@ void YtaRobot::PneumaticSequence()
     {
         if (!bJackBackRaised)
         {
-            m_pJackBackSolenoid->Set(DoubleSolenoid::kForward);
+            m_pJackBackSolenoid->Set(DoubleSolenoid::kReverse);
         }
         else
         {
-            m_pJackBackSolenoid->Set(DoubleSolenoid::kReverse);
+            m_pJackBackSolenoid->Set(DoubleSolenoid::kForward);
         }
 
         bJackBackRaised = !bJackBackRaised;

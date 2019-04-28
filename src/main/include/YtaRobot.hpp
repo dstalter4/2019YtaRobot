@@ -422,10 +422,10 @@ private:
     // Solenoid Signals
     static const int                HATCH_SOLENOID_FORWARD_CHANNEL          = 0;
     static const int                HATCH_SOLENOID_REVERSE_CHANNEL          = 1;
-    static const int                JACK_FRONT_SOLENOID_FORWARD_CHANNEL     = 2;
-    static const int                JACK_FRONT_SOLENOID_REVERSE_CHANNEL     = 3;
-    static const int                JACK_BACK_SOLENOID_FORWARD_CHANNEL      = 4;
-    static const int                JACK_BACK_SOLENOID_REVERSE_CHANNEL      = 5;
+    static const int                JACK_BACK_SOLENOID_FORWARD_CHANNEL      = 2;
+    static const int                JACK_BACK_SOLENOID_REVERSE_CHANNEL      = 3;
+    static const int                JACK_FRONT_SOLENOID_FORWARD_CHANNEL     = 4;
+    static const int                JACK_FRONT_SOLENOID_REVERSE_CHANNEL     = 5;
     
     // Misc
     const std::string               AUTO_ROUTINE_1_STRING                   = "Autonomous Routine 1";
@@ -453,8 +453,10 @@ private:
     static const unsigned           CAMERA_RUN_INTERVAL_MS                  = 1000U;
     static const unsigned           I2C_RUN_INTERVAL_MS                     = 240U;
     
-    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.75;
-    static constexpr double         INTAKE_MOTOR_SPEED                      =  0.70;
+    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.90;
+    static constexpr double         ARM_ROTATION_MOTOR_JOG_SPEED            =  0.75;
+    static constexpr double         INTAKE_SPIN_IN_MOTOR_SPEED              =  0.90;
+    static constexpr double         INTAKE_SPIN_OUT_MOTOR_SPEED             =  0.70;
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
     static constexpr double         CONTROL_THROTTLE_VALUE_RANGE            =  0.65;
