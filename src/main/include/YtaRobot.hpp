@@ -386,6 +386,7 @@ private:
     // Control buttons
     static const int                MOVE_LIFT_AXIS                          = YtaController::RawAxes::LEFT_Y_AXIS;
     static const int                ROTATE_ARM_AXIS                         = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                CLIMB_JOG_BUTTON                        = YtaController::RawButtons::A;
     static const int                CONTROL_HATCH_BUTTON                    = YtaController::RawButtons::RT;
     static const int                INTAKE_SPIN_IN_BUTTON                   = YtaController::RawButtons::LT;
     static const int                INTAKE_SPIN_OUT_AXIS                    = YtaController::RawAxes::LEFT_TRIGGER;
@@ -469,6 +470,7 @@ private:
     static constexpr double         DIRECTIONAL_ALIGN_DRIVE_SPEED           =  0.55;
     static constexpr double         DIRECTIONAL_ALIGN_MAX_TIME_S            =  3.00;
     
+    static constexpr double         ARM_JOG_DELAY_S                         =  0.25;
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
     
     // This may seem backward, but the LEDS work by creating
