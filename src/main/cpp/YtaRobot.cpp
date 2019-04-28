@@ -235,9 +235,9 @@ void YtaRobot::InitialStateSetup()
     m_pRightDriveMotors->TareEncoder();
     
     // Solenoids
-    m_pHatchSolenoid->Set(DoubleSolenoid::kOff);
-    m_pJackFrontSolenoid->Set(DoubleSolenoid::kOff);
-    m_pJackBackSolenoid->Set(DoubleSolenoid::kOff);
+    m_pHatchSolenoid->Set(DoubleSolenoid::kReverse);
+    m_pJackFrontSolenoid->Set(DoubleSolenoid::kForward);
+    m_pJackBackSolenoid->Set(DoubleSolenoid::kForward);
     
     // Enable LEDs, but keep them off for now
     m_pLedsEnableRelay->Set(LEDS_ENABLED);
@@ -370,29 +370,84 @@ void YtaRobot::LiftAndArmSequence()
     
     
     // Arm rotation motors
-    // Joystick input maps to -1 up, +1 down
-    double armMotorValue = Trim(-m_pControlJoystick->GetRawAxis(ROTATE_ARM_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT) * ARM_ROTATION_MOTOR_SCALING_SPEED;
-    
-    // Make sure the arm rotation limit switch is not tripped
-    if ((armMotorValue > 0.0) && (!m_pArmRotationLimitSwitch->Get()))
+    enum ArmRotationState
     {
-        // Upward motion not allowed, downward only
-        armMotorValue = 0.0;
-    }
+        MANUAL_CONTROL,
+        JOG_ON,
+        JOG_OFF
+    };
     
-    m_pArmRotationMotors->Set(armMotorValue);
+    static ArmRotationState armRotationState = MANUAL_CONTROL;
+    static Timer * pArmJogTimer = new Timer();
+    
+    switch (armRotationState)
+    {
+        case MANUAL_CONTROL:
+        {
+            // First check for a jog request
+            if (m_pControlJoystick->GetRawButton(CLIMB_JOG_BUTTON))
+            {
+                m_pArmRotationMotors->Set(-ARM_ROTATION_MOTOR_JOG_SPEED);
+                pArmJogTimer->Reset();
+                pArmJogTimer->Start();
+                armRotationState = JOG_ON;
+            }
+            // No jog request, normal user control
+            else
+            {
+                // Joystick input maps to -1 up, +1 down
+                double armMotorValue = Trim(-m_pControlJoystick->GetRawAxis(ROTATE_ARM_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT) * ARM_ROTATION_MOTOR_SCALING_SPEED;
+                
+                // Make sure the arm rotation limit switch is not tripped
+                if ((armMotorValue > 0.0) && (!m_pArmRotationLimitSwitch->Get()))
+                {
+                    // Upward motion not allowed, downward only
+                    armMotorValue = 0.0;
+                }
+                
+                m_pArmRotationMotors->Set(armMotorValue);
+            }
+            
+            break;
+        }
+        case JOG_ON:
+        {
+            if (pArmJogTimer->Get() >= ARM_JOG_DELAY_S)
+            {
+                m_pArmRotationMotors->Set(OFF);
+                pArmJogTimer->Reset();
+                armRotationState = JOG_OFF;
+            }
+            
+            break;
+        }
+        case JOG_OFF:
+        {
+            if (pArmJogTimer->Get() >= ARM_JOG_DELAY_S)
+            {
+                pArmJogTimer->Stop();
+                armRotationState = MANUAL_CONTROL;
+            }
+            
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    };
     
     
     
     // Intake motor
     if (m_pControlJoystick->GetRawButton(INTAKE_SPIN_IN_BUTTON))
     {
-        m_pIntakeMotor->Set(ControlMode::PercentOutput, INTAKE_MOTOR_SPEED);
+        m_pIntakeMotor->Set(ControlMode::PercentOutput, INTAKE_SPIN_IN_MOTOR_SPEED);
     }
     // Control input just needs to be non-zero (not using proportional motor control on the intake)
     else if (Trim(m_pControlJoystick->GetRawAxis(INTAKE_SPIN_OUT_AXIS), JOYSTICK_TRIM_UPPER_LIMIT, JOYSTICK_TRIM_LOWER_LIMIT) != 0.0)
     {
-        m_pIntakeMotor->Set(ControlMode::PercentOutput, -INTAKE_MOTOR_SPEED);
+        m_pIntakeMotor->Set(ControlMode::PercentOutput, -INTAKE_SPIN_OUT_MOTOR_SPEED);
     }
     else
     {
@@ -431,11 +486,11 @@ void YtaRobot::PneumaticSequence()
     {
         if (!bJackFrontRaised)
         {
-            m_pJackFrontSolenoid->Set(DoubleSolenoid::kForward);
+            m_pJackFrontSolenoid->Set(DoubleSolenoid::kReverse);
         }
         else
         {
-            m_pJackFrontSolenoid->Set(DoubleSolenoid::kReverse);
+            m_pJackFrontSolenoid->Set(DoubleSolenoid::kForward);
         }
 
         bJackFrontRaised = !bJackFrontRaised;
@@ -447,11 +502,11 @@ void YtaRobot::PneumaticSequence()
     {
         if (!bJackBackRaised)
         {
-            m_pJackBackSolenoid->Set(DoubleSolenoid::kForward);
+            m_pJackBackSolenoid->Set(DoubleSolenoid::kReverse);
         }
         else
         {
-            m_pJackBackSolenoid->Set(DoubleSolenoid::kReverse);
+            m_pJackBackSolenoid->Set(DoubleSolenoid::kForward);
         }
 
         bJackBackRaised = !bJackBackRaised;

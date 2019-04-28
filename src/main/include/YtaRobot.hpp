@@ -143,6 +143,12 @@ private:
     struct TriggerChangeValues
     {
     public:
+        enum TriggerEdge
+        {
+            FALLING_EDGE_TRIGGER,
+            RISING_EDGE_TRIGGER
+        };
+        
         // Constructor
         TriggerChangeValues(GenericHID * rpJoystick, int button) :
             m_pJoystick(rpJoystick),
@@ -152,8 +158,8 @@ private:
         {
         }
         
-        // Detect that a button has been pressed (rather than released)
-        inline bool DetectChange();
+        // Detect that a button has been pressed or released (defaults to pressed)
+        inline bool DetectChange(TriggerEdge edge = RISING_EDGE_TRIGGER);
         
     private:
         GenericHID * m_pJoystick;
@@ -380,6 +386,7 @@ private:
     // Control buttons
     static const int                MOVE_LIFT_AXIS                          = YtaController::RawAxes::LEFT_Y_AXIS;
     static const int                ROTATE_ARM_AXIS                         = YtaController::RawAxes::RIGHT_Y_AXIS;
+    static const int                CLIMB_JOG_BUTTON                        = YtaController::RawButtons::A;
     static const int                CONTROL_HATCH_BUTTON                    = YtaController::RawButtons::RT;
     static const int                INTAKE_SPIN_IN_BUTTON                   = YtaController::RawButtons::LT;
     static const int                INTAKE_SPIN_OUT_AXIS                    = YtaController::RawAxes::LEFT_TRIGGER;
@@ -415,10 +422,10 @@ private:
     // Solenoid Signals
     static const int                HATCH_SOLENOID_FORWARD_CHANNEL          = 0;
     static const int                HATCH_SOLENOID_REVERSE_CHANNEL          = 1;
-    static const int                JACK_FRONT_SOLENOID_FORWARD_CHANNEL     = 2;
-    static const int                JACK_FRONT_SOLENOID_REVERSE_CHANNEL     = 3;
-    static const int                JACK_BACK_SOLENOID_FORWARD_CHANNEL      = 4;
-    static const int                JACK_BACK_SOLENOID_REVERSE_CHANNEL      = 5;
+    static const int                JACK_BACK_SOLENOID_FORWARD_CHANNEL      = 2;
+    static const int                JACK_BACK_SOLENOID_REVERSE_CHANNEL      = 3;
+    static const int                JACK_FRONT_SOLENOID_FORWARD_CHANNEL     = 4;
+    static const int                JACK_FRONT_SOLENOID_REVERSE_CHANNEL     = 5;
     
     // Misc
     const std::string               AUTO_ROUTINE_1_STRING                   = "Autonomous Routine 1";
@@ -446,8 +453,10 @@ private:
     static const unsigned           CAMERA_RUN_INTERVAL_MS                  = 1000U;
     static const unsigned           I2C_RUN_INTERVAL_MS                     = 240U;
     
-    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.75;
-    static constexpr double         INTAKE_MOTOR_SPEED                      =  0.70;
+    static constexpr double         ARM_ROTATION_MOTOR_SCALING_SPEED        =  0.90;
+    static constexpr double         ARM_ROTATION_MOTOR_JOG_SPEED            =  0.75;
+    static constexpr double         INTAKE_SPIN_IN_MOTOR_SPEED              =  0.90;
+    static constexpr double         INTAKE_SPIN_OUT_MOTOR_SPEED             =  0.70;
     static constexpr double         JOYSTICK_TRIM_UPPER_LIMIT               =  0.10;
     static constexpr double         JOYSTICK_TRIM_LOWER_LIMIT               = -0.10;
     static constexpr double         CONTROL_THROTTLE_VALUE_RANGE            =  0.65;
@@ -463,6 +472,7 @@ private:
     static constexpr double         DIRECTIONAL_ALIGN_DRIVE_SPEED           =  0.55;
     static constexpr double         DIRECTIONAL_ALIGN_MAX_TIME_S            =  3.00;
     
+    static constexpr double         ARM_JOG_DELAY_S                         =  0.25;
     static constexpr double         SAFETY_TIMER_MAX_VALUE                  =  5.00;
     
     // This may seem backward, but the LEDS work by creating
@@ -741,33 +751,47 @@ inline double YtaRobot::Trim( double num, double upper, double lower )
 /// have TriggerChangeValues variables in the code and update
 /// their 'current' value each time through the loop by reading
 /// the joystick input.  This input will then be checked against
-/// the old input and return 'true' if it detects the button has
-/// been pressed.  This method is intended to be called inside
+/// the old input and return 'true' if it detects an appropriate
+/// edge change.  This method is intended to be called inside
 /// 'if' statements for logic control.
 ///
 ////////////////////////////////////////////////////////////////
-inline bool YtaRobot::TriggerChangeValues::DetectChange()
+inline bool YtaRobot::TriggerChangeValues::DetectChange(TriggerEdge edge)
 {
-    // @todo: Remove nullptr check once this is validated
-    // First read the latest value from the joystick
+    bool bTriggerChanged = false;
+    
+    // The trigger change objects are initially set to nullptr and then created
+    // after the robot joysticks are set.  While the window between the two is
+    // incredibly small (member initialization list -> constructor body), apparently
+    // it is still possible for something to try and use the objects in this window.
+    // Make sure assignment to a valid joystick has occurred.
     if (m_pJoystick != nullptr)
-    {
+    {    
+        // First read the latest value from the joystick
         this->m_bCurrentValue = m_pJoystick->GetRawButton(m_ButtonNumber);
-    }
-    
-    // Only report a change if the current value is different than the old value
-    // Also make sure the transition is to being pressed since we are detecting
-    // presses and not releases
-    if ( (this->m_bCurrentValue != this->m_bOldValue) && this->m_bCurrentValue )
-    {
-        // Update the old value, return the button was pressed
+        
+        // Only report a change if the current value is different than the old value
+        if ( (this->m_bCurrentValue != this->m_bOldValue) )
+        {
+            // Also make sure the transition is to the correct edge
+            if ((edge == RISING_EDGE_TRIGGER) && this->m_bCurrentValue)
+            {
+                bTriggerChanged = true;
+            }
+            else if ((edge == FALLING_EDGE_TRIGGER) && !this->m_bCurrentValue)
+            {
+                bTriggerChanged = true;
+            }
+            else
+            {
+            }
+        }
+        
+        // Always update the old value
         this->m_bOldValue = this->m_bCurrentValue;
-        return true;
     }
     
-    // Otherwise update the old value
-    this->m_bOldValue = this->m_bCurrentValue;
-    return false;
+    return bTriggerChanged;
 }
 
 #endif // YTAROBOT_HPP

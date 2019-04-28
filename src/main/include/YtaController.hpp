@@ -82,8 +82,8 @@ private:
     double m_ThrottleValue;
     
     // @todo: These impact all controllers, not just driving.
-    static constexpr double X_AXIS_SENSITIVITY_SCALING = 0.65;
-    static constexpr double Y_AXIS_SENSITIVITY_SCALING = 0.90;
+    static constexpr double X_AXIS_SENSITIVITY_SCALING = 0.75;
+    static constexpr double Y_AXIS_SENSITIVITY_SCALING = 1.00;
     
     // Prevent copying/assignment
     YtaController(const YtaController&) = delete;
