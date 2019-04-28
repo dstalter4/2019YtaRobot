@@ -192,6 +192,17 @@ void YtaRioduino::Initialize()
 ////////////////////////////////////////////////////////////////////////////////
 void YtaRioduino::Run()
 {
+  while (true)
+  {
+    while (!m_bCollectSensorData)
+    {
+      HeartBeat();
+    }
+    GetGyroData();
+    BuildI2cData();
+    m_bCollectSensorData = false;
+  }
+  
   // This approach is an interurpt based communication mechanism.
   // The roboRIO will interrupt the RIOduino when it wants new data.
   // The loops waiting on a state change will poll for a new I2C
@@ -395,6 +406,11 @@ void YtaRioduino::BuildI2cData()
   
   // Indicate gyro data is being sent over
   m_I2cData.m_DataSelection = RoborioRioduinoSharedData::I2cDataSelection::GYRO_DATA;
+  
+  // Temporary test sending 0 -> 360
+  m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_bIsNegative = false;
+  m_I2cData.m_DataBuffer.m_GyroData.m_xAxisInfo.m_Angle = static_cast<uint16_t>(round(m_RobotAbsoluteAngle));
+  return;
   
   // First get the robot angle since it will be manipulated before sending
   double robotAngle = m_RobotAngle;
